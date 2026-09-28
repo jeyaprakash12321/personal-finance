@@ -2,57 +2,67 @@
 
 ## Purpose
 
-Keep browser requests behind the Next.js authenticated boundary.
+Keep authenticated browser requests behind the Next.js boundary.
 
-## Standard route structure
+Browser code should normally call `/api/...`, not Fastify directly.
 
-Example:
-`apps/web/src/app/api/accounts/route.ts`
+## Proxy responsibilities
 
-A protected proxy should:
+A protected route should:
+
 1. read `wealthly_token`
 2. return 401 if missing
 3. call Fastify
-4. forward Authorization
-5. forward JSON body for POST/PATCH
-6. return the Fastify status
-7. safely return JSON
+4. forward `Authorization: Bearer <token>`
+5. forward the request body when applicable
+6. preserve meaningful backend status codes
+7. safely return the response
 
 ## Methods
 
-Implement every method actually used by the frontend.
+Implement every method actually used by frontend callers.
 
-For example:
-- GET /api/accounts
-- POST /api/accounts
+Do not assume GET-only behavior.
 
-Do not create a GET-only route when the frontend also creates resources.
+Inspect existing callers before changing a proxy.
 
-## Error handling
+## Error behavior
 
-Preserve meaningful Fastify status codes.
+Preserve meaningful status codes:
 
-Do not convert every backend error into 500.
+- 401 authentication failure
+- appropriate authorization failure
+- 4xx validation errors
+- 404 not found
+- 5xx backend failures
 
-Handle invalid JSON carefully.
+Do not turn every error into 500.
 
-## Frontend rule
+Handle malformed JSON without crashing the route.
 
-Authenticated client components should call:
-`/api/accounts`
+## Anti-patterns
 
-not:
-`http://localhost:4000/accounts`
+Do not:
 
-Server components that intentionally call Fastify directly must explicitly forward the cookie-derived JWT.
+- call `http://localhost:4000/...` directly from authenticated client components
+- expose JWT secrets
+- expose the JWT to client JavaScript
+- duplicate auth logic across components
+- accept arbitrary `userId` as authorization
 
 ## Verification
 
-Use browser DevTools Network and inspect:
-- URL
-- method
-- status
-- response
-- whether the request is sent to Next or Fastify
+For proxy changes verify:
 
-Then inspect server logs if needed.
+- frontend URL
+- method
+- body
+- cookie retrieval
+- Authorization forwarding
+- backend status propagation
+- response shape
+- unauthenticated behavior
+- authenticated behavior
+- backend validation/authorization errors
+
+After finding a direct Fastify call, search the whole web app for other occurrences.

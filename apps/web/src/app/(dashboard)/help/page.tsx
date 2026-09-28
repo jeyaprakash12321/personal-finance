@@ -211,7 +211,7 @@ export default function HelpPage() {
                 </p>
 
                 <p className="mt-1 max-w-lg text-sm leading-6 text-[#60736b]">
-                  Support messaging will be connected as Wealthly's
+                  Support messaging will be connected as Wealthly&apos;s
                   account and notification system is completed.
                 </p>
               </div>

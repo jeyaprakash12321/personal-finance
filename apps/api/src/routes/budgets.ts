@@ -286,4 +286,78 @@ export default async function budgetRoutes(
         });
     }
   );
+
+  const updateBudgetSchema = z.object({
+    amount: z
+      .string()
+      .regex(/^\d+(\.\d{1,2})?$/),
+  });
+
+  app.put(
+    "/budgets/:id",
+    {
+      preHandler: [app.authenticate],
+    },
+    async (request: any, reply: any) => {
+      const { id } = request.params;
+      const body = updateBudgetSchema.parse(request.body);
+      const userId = request.user.id;
+
+      const amount = Number(body.amount);
+      if (amount <= 0) {
+        return reply.code(400).send({
+          message: "Budget amount must be greater than zero",
+        });
+      }
+
+      const [existing] = await db
+        .select()
+        .from(budgets)
+        .where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
+
+      if (!existing) {
+        return reply.code(404).send({
+          message: "Budget not found",
+        });
+      }
+
+      const [updated] = await db
+        .update(budgets)
+        .set({
+          amount: body.amount,
+        })
+        .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
+        .returning();
+
+      return reply.send(updated);
+    }
+  );
+
+  app.delete(
+    "/budgets/:id",
+    {
+      preHandler: [app.authenticate],
+    },
+    async (request: any, reply: any) => {
+      const { id } = request.params;
+      const userId = request.user.id;
+
+      const [existing] = await db
+        .select()
+        .from(budgets)
+        .where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
+
+      if (!existing) {
+        return reply.code(404).send({
+          message: "Budget not found",
+        });
+      }
+
+      await db
+        .delete(budgets)
+        .where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
+
+      return reply.send({ message: "Budget deleted successfully" });
+    }
+  );
 }

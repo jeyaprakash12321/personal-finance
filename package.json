@@ -4,7 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --runInBand",
+    "test:node": "pnpm test",
+    "test:coverage": "jest --runInBand --coverage",
+    "test:web": "pnpm test",
+    "test:e2e": "playwright test"
   },
   "keywords": [],
   "author": "",
@@ -17,5 +21,15 @@
     }
   },
   "packageManager": "pnpm@12.4.2",
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^8.0.1",
+    "@babel/preset-typescript": "^8.0.1",
+    "@playwright/test": "^1.63.0",
+    "@swc/core": "^1.16.2",
+    "@swc/jest": "^0.2.39",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.5.2",
+    "ts-jest": "^29.4.13"
+  }
 }

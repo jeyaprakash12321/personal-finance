@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   Cell,
   Pie,
@@ -37,35 +39,38 @@ export function ExpenseBreakdown({
   );
 
   return (
-    <div className="rounded-2xl border border-[#e5ece8] bg-white p-5 shadow-[0_8px_30px_rgba(16,35,28,0.04)] sm:p-6">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--card-bg)] p-5 shadow-[var(--shadow-sm)] sm:p-6">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#078653]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
             Spending
           </p>
 
-          <h2 className="mt-1 text-[20px] font-bold tracking-[-0.035em] text-[#10231c]">
+          <h2 className="mt-1 text-[20px] font-bold tracking-[-0.035em] text-[var(--text-primary)]">
             Expense Breakdown
           </h2>
 
-          <p className="mt-1 text-[12px] text-[#81918a]">
+          <p className="mt-1 text-[12px] text-[var(--text-secondary)]">
             See where your money goes
           </p>
         </div>
 
-        <button className="rounded-lg px-2 py-1 text-[11px] font-medium text-[#078653] hover:bg-[#f1f8f4]">
+        <Link
+          href="/reports"
+          className="rounded-lg px-2 py-1 text-[11px] font-medium text-[var(--accent)] hover:bg-[var(--surface-muted)]"
+        >
           Details
-        </button>
+        </Link>
       </div>
 
       {data.length === 0 ? (
-        <div className="mt-6 flex h-[280px] items-center justify-center rounded-xl bg-[#f8faf9]">
+        <div className="mt-6 flex h-[280px] items-center justify-center rounded-xl bg-[var(--surface-subtle)]">
           <div className="text-center">
-            <p className="text-sm font-medium text-[#50665c]">
+            <p className="text-sm font-medium text-[var(--text-primary)]">
               No expenses yet
             </p>
 
-            <p className="mt-1 text-xs text-[#91a09a]">
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
               Add an expense to see your breakdown.
             </p>
           </div>
@@ -112,11 +117,11 @@ export function ExpenseBreakdown({
 
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-[10px] uppercase tracking-wide text-[#91a09a]">
+                <p className="text-[10px] uppercase tracking-wide text-[#91a09a] dark:text-slate-400">
                   Total spent
                 </p>
 
-                <p className="mt-1 text-[22px] font-bold tracking-[-0.04em] text-[#10231c]">
+                <p className="mt-1 text-[22px] font-bold tracking-[-0.04em] text-[#10231c] dark:text-white">
                   {formatCurrency(total)}
                 </p>
               </div>
@@ -124,7 +129,7 @@ export function ExpenseBreakdown({
           </div>
 
           {/* Categories */}
-          <div className="space-y-3 border-t border-[#edf1ef] pt-4">
+          <div className="space-y-3 border-t border-[#edf1ef] dark:border-[var(--border)] pt-4">
             {data.map((item, index) => {
               const percentage =
                 total > 0
@@ -151,17 +156,17 @@ export function ExpenseBreakdown({
                       }}
                     />
 
-                    <span className="truncate text-[12px] font-medium text-[#50665c]">
+                    <span className="truncate text-[12px] font-medium text-[#50665c] dark:text-slate-300">
                       {item.name}
                     </span>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-3">
-                    <span className="text-[12px] font-semibold text-[#30463d]">
+                    <span className="text-[12px] font-semibold text-[#30463d] dark:text-white">
                       {formatCurrency(item.amount)}
                     </span>
 
-                    <span className="w-8 text-right text-[10px] text-[#91a09a]">
+                    <span className="w-8 text-right text-[10px] text-[#91a09a] dark:text-slate-400">
                       {percentage}%
                     </span>
                   </div>

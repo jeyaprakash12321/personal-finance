@@ -7,239 +7,162 @@ import { RecentTransactions } from "../components/dashboard/recent-transactions"
 import { FinancialGoals } from "../components/dashboard/financial-goals";
 import { RightRail } from "../components/dashboard/right-rail";
 import { CashFlowSection } from "../components/dashboard/cash-flow-section";
-
-const API_URL = "http://localhost:4000";
+import { GettingStarted } from "../components/dashboard/getting-started";
+import { buildExpenseBreakdown } from "../../lib/dashboard";
 
 type Transaction = {
   id: string;
   amount: string;
   type: "income" | "expense";
+  description: string | null;
   transactionDate: string;
   categoryName: string;
 };
 
-function buildCashFlowData(
-  transactions: Transaction[]
-) {
-  const grouped = new Map<
-    string,
-    {
-      date: string;
-      income: number;
-      expenses: number;
-    }
-  >();
+type Goal = {
+  id: string;
+  name: string;
+  description: string | null;
+  targetAmount: string;
+  targetDate: string | null;
+  currentAmount: number;
+  remainingAmount: number;
+  progressPercentage: number;
+  isCompleted: boolean;
+};
 
-  for (const transaction of transactions) {
-    const date = new Date(
-      transaction.transactionDate
-    ).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
+type DashboardData = {
+  accounts: {
+    totalBalance: number;
+    count: number;
+  };
+  transactions: {
+    income: number;
+    expenses: number;
+    net: number;
+    count: number;
+  };
+  goals: {
+    totalTarget: number;
+    totalSaved: number;
+    remaining: number;
+    progressPercentage: number;
+    count: number;
+  };
+};
+
+type NetWorthData = {
+  live: {
+    totalAssets: number;
+    totalLiabilities: number;
+    netWorth: number;
+  };
+};
+
+type Budget = { id: string };
+
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+async function apiRequest<T>(path: string, token: string): Promise<T | null> {
+  try {
+    const response = await fetch(`${BASE_URL}/api${path}`, {
+      cache: "no-store",
+      headers: {
+        Cookie: `wealthly_token=${token}`,
+      },
     });
 
-    const existing = grouped.get(date) ?? {
-      date,
-      income: 0,
-      expenses: 0,
-    };
-
-    if (transaction.type === "income") {
-      existing.income += Number(
-        transaction.amount
-      );
-    } else {
-      existing.expenses += Number(
-        transaction.amount
-      );
+    if (!response.ok) {
+      console.error(`API failed for ${path}: ${response.status}`);
+      return null;
     }
 
-    grouped.set(date, existing);
+    return response.json();
+  } catch (error) {
+    console.error(`API request failed for ${path}:`, error);
+    return null;
   }
-
-  return Array.from(grouped.values());
 }
 
-function buildExpenseBreakdown(
-  transactions: Transaction[]
-) {
-  const grouped = new Map<string, number>();
-
-  for (const transaction of transactions) {
-    if (transaction.type !== "expense") {
-      continue;
-    }
-
-    const category =
-      transaction.categoryName;
-
-    grouped.set(
-      category,
-      (grouped.get(category) ?? 0) +
-        Number(transaction.amount)
-    );
-  }
-
-  return Array.from(grouped.entries()).map(
-    ([name, amount]) => ({
-      name,
-      amount,
-    })
-  );
-}
-
-async function authenticatedFetch(
-  path: string
-) {
+export default async function Home() {
   const cookieStore = await cookies();
-
-  const token =
-    cookieStore.get(
-      "wealthly_token"
-    )?.value;
+  const token = cookieStore.get("wealthly_token")?.value;
 
   if (!token) {
     redirect("/login");
   }
 
-  return fetch(`${API_URL}${path}`, {
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-}
-
-async function getDashboard() {
-  const response =
-    await authenticatedFetch(
-      "/dashboard"
-    );
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      redirect("/login");
-    }
-
-    throw new Error(
-      "Failed to load dashboard"
-    );
-  }
-
-  return response.json();
-}
-
-async function getTransactions() {
-  const response =
-    await authenticatedFetch(
-      "/transactions"
-    );
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      redirect("/login");
-    }
-
-    throw new Error(
-      "Failed to load transactions"
-    );
-  }
-
-  return response.json();
-}
-
-async function getGoals() {
-  const response =
-    await authenticatedFetch("/goals");
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      redirect("/login");
-    }
-
-    throw new Error(
-      "Failed to load goals"
-    );
-  }
-
-  return response.json();
-}
-
-export default async function Home() {
-  const [
-    dashboard,
-    transactions,
-    goals,
-  ] = await Promise.all([
-    getDashboard(),
-    getTransactions(),
-    getGoals(),
+  const [dashboardResult, transactionsResult, goalsResult, budgetsResult, cashFlowResult, netWorthResult] = await Promise.all([
+    apiRequest<DashboardData>("/dashboard", token),
+    apiRequest<Transaction[]>("/transactions", token),
+    apiRequest<Goal[]>("/goals", token),
+    apiRequest<Budget[]>("/budgets", token),
+    apiRequest<{ date: string; income: number; expenses: number }[]>("/dashboard/cash-flow?range=30d", token),
+    apiRequest<NetWorthData>("/net-worth", token),
   ]);
 
-  const cashFlowData =
-    buildCashFlowData(transactions);
+  const dashboard: DashboardData = dashboardResult || {
+    accounts: { totalBalance: 0, count: 0 },
+    transactions: { income: 0, expenses: 0, net: 0, count: 0 },
+    goals: { totalTarget: 0, totalSaved: 0, remaining: 0, progressPercentage: 0, count: 0 },
+  };
 
-  const expenseBreakdown =
-    buildExpenseBreakdown(
-      transactions
-    );
+  const transactions: Transaction[] = transactionsResult || [];
+  const goals: Goal[] = goalsResult || [];
+  const budgets: Budget[] = budgetsResult || [];
+  const netWorth = netWorthResult?.live ?? { totalAssets: 0, totalLiabilities: 0, netWorth: 0 };
+
+  const cashFlowData = cashFlowResult ?? [];
+  const expenseBreakdown = buildExpenseBreakdown(transactions);
 
   return (
-    <div className="min-h-screen bg-[#f7faf8]">
-      <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-[1480px]">
-          <div>
-            <p className="text-sm font-medium text-emerald-700">
-              Personal Finance
-            </p>
+      <div className="min-h-screen bg-[var(--background)]">
+        <main className="flex-1 px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+          <div className="mx-auto max-w-[1480px]">
+            <div>
+              <p className="text-sm font-medium text-[var(--accent)]">
+                Personal Finance
+              </p>
 
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Good morning, Jeyaprakash!
-            </h1>
+              <h1 className="mt-1 text-[28px] font-bold tracking-[-0.04em] text-[var(--text-primary)] sm:text-3xl">
+                Welcome back!
+              </h1>
 
-            <p className="mt-2 text-base text-slate-500">
-              Here's your financial snapshot
-              for today.
-            </p>
-          </div>
+              <p className="mt-1.5 text-sm text-[var(--text-secondary)] sm:text-base">
+                Here&apos;s your financial snapshot for today.
+              </p>
+            </div>
 
-          <div className="mt-8">
-            <div className="flex items-start gap-6">
-              <div className="min-w-0 flex-1">
-                <SummaryCards
-                  dashboard={dashboard}
-                />
+            <GettingStarted
+              hasAccount={dashboard.accounts.count > 0}
+              hasTransaction={transactions.length > 0}
+              hasBudget={budgets.length > 0}
+              hasGoal={goals.length > 0}
+            />
 
-                <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-                  <CashFlowSection
-                    initialData={cashFlowData}
-                  />
+            <div className="mt-6 sm:mt-8">
+              <div className="flex items-start gap-6">
+                <div className="min-w-0 flex-1">
+                  <SummaryCards dashboard={dashboard} netWorth={netWorth} />
 
-                  <ExpenseBreakdown
-                    data={expenseBreakdown}
-                  />
+                  <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+                    <CashFlowSection initialData={cashFlowData} />
+                    <ExpenseBreakdown data={expenseBreakdown} />
+                  </div>
+
+                  <div className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+                    <RecentTransactions transactions={transactions} />
+                    <FinancialGoals goals={goals} />
+                  </div>
                 </div>
 
-                <div className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-                  <RecentTransactions
-                    transactions={transactions}
-                  />
-
-                  <FinancialGoals
-                    goals={goals}
-                  />
+                <div className="hidden w-[270px] shrink-0 xl:block">
+                  <RightRail />
                 </div>
-              </div>
-
-              <div className="hidden w-[270px] shrink-0 xl:block">
-                <RightRail
-                  transactions={transactions}
-                />
               </div>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
   );
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  and,
   db,
   eq,
   goalContributions,
@@ -109,8 +110,79 @@ export default async function goalRoutes(
           remainingAmount,
           progressPercentage,
           isCompleted,
+          contributions: contributionsForGoal,
         };
       });
+    }
+  );
+
+  // PUT /goals/:id — update name, description, targetAmount, targetDate
+  app.put(
+    "/goals/:id",
+    {
+      preHandler: [app.authenticate],
+    },
+    async (request: any, reply: any) => {
+      const { id } = request.params as { id: string };
+      const userId = request.user.id;
+
+      const updateSchema = z.object({
+        name: z.string().min(1).max(100).optional(),
+        description: z.string().max(255).optional().nullable(),
+        targetAmount: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+        targetDate: z.string().datetime().optional().nullable(),
+      });
+
+      const body = updateSchema.parse(request.body);
+
+      const [existing] = await db
+        .select()
+        .from(goals)
+        .where(and(eq(goals.id, id), eq(goals.userId, userId)));
+
+      if (!existing) {
+        return reply.code(404).send({ message: "Goal not found" });
+      }
+
+      const [updated] = await db
+        .update(goals)
+        .set({
+          ...(body.name !== undefined && { name: body.name }),
+          ...(body.description !== undefined && { description: body.description ?? null }),
+          ...(body.targetAmount !== undefined && { targetAmount: body.targetAmount }),
+          ...(body.targetDate !== undefined && {
+            targetDate: body.targetDate ? new Date(body.targetDate) : null,
+          }),
+        })
+        .where(eq(goals.id, id))
+        .returning();
+
+      return reply.send(updated);
+    }
+  );
+
+  // DELETE /goals/:id — cascade deletes contributions (FK cascade in schema)
+  app.delete(
+    "/goals/:id",
+    {
+      preHandler: [app.authenticate],
+    },
+    async (request: any, reply: any) => {
+      const { id } = request.params as { id: string };
+      const userId = request.user.id;
+
+      const [existing] = await db
+        .select()
+        .from(goals)
+        .where(and(eq(goals.id, id), eq(goals.userId, userId)));
+
+      if (!existing) {
+        return reply.code(404).send({ message: "Goal not found" });
+      }
+
+      await db.delete(goals).where(eq(goals.id, id));
+
+      return reply.code(204).send();
     }
   );
 }

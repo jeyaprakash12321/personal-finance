@@ -1,37 +1,258 @@
 @import "tailwindcss";
 
+/* =========================================================
+   WEALTHLY THEME
+   ========================================================= */
+
 :root {
-  --background: #f7faf8;
-  --foreground: #10231c;
+  color-scheme: light;
+
+  --background: #f7f6fb;
+  --foreground: #1f1d2b;
 
   --surface: #ffffff;
-  --surface-soft: #f1f8f4;
+  --surface-subtle: #fbfaff;
+  --surface-muted: #f2eff9;
 
-  --border: #e4ebe7;
+  --border: #e7e3ef;
+  --border-subtle: #f0edf5;
 
-  --text-primary: #10231c;
-  --text-secondary: #60736b;
-  --text-muted: #91a09a;
+  --text-primary: #1f1d2b;
+  --text-secondary: #706d7f;
+  --text-muted: #9a97a8;
 
-  --green-50: #ecfdf5;
-  --green-100: #d9f7e9;
-  --green-200: #b7efd3;
-  --green-500: #16a36a;
-  --green-600: #078653;
-  --green-700: #056b43;
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-soft: #f1eafe;
+  --accent-border: #d9c5ff;
+  --accent-secondary: #ff7043;
+  --accent-secondary-soft: #fff0eb;
 
-  --red-500: #ff5b5f;
-  --blue-500: #4c8df6;
-  --purple-500: #8b6cf6;
+  --danger: #e45761;
+  --danger-soft: #fff1f2;
+
+  --warning: #d89018;
+  --warning-soft: #fff8e8;
+
+  --info: #4c8df6;
+  --info-soft: #eef4ff;
+
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e7e3ef;
+  --sidebar-text: #706d7f;
+  --sidebar-hover: #f4f0fb;
+  --sidebar-active: #f0eafe;
+  --sidebar-active-text: #6d28d9;
+
+  --topbar-bg: rgba(255, 255, 255, 0.96);
+  --topbar-border: #e7e3ef;
+
+  --card-bg: #ffffff;
+  --card-border: #e7e3ef;
+
+  --input-bg: #ffffff;
+  --input-border: #ddd8e8;
+
+  --shadow-sm: 0 1px 2px rgba(31, 29, 43, 0.03);
 
   --shadow-card:
-    0 1px 2px rgba(16, 35, 28, 0.02),
-    0 8px 30px rgba(16, 35, 28, 0.04);
+    0 1px 2px rgba(31, 29, 43, 0.02),
+    0 8px 28px rgba(31, 29, 43, 0.06);
 
-  --shadow-card-hover:
-    0 2px 4px rgba(16, 35, 28, 0.03),
-    0 14px 35px rgba(16, 35, 28, 0.08);
+  --shadow-lg:
+    0 16px 40px rgba(31, 29, 43, 0.1);
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
 }
+
+/* =========================================================
+   ACCENTS
+   ========================================================= */
+
+html[data-accent="green"] {
+  --accent: #08a66a;
+  --accent-hover: #078653;
+  --accent-soft: #e9f8f0;
+  --accent-border: #bcebd4;
+}
+
+html[data-accent="blue"] {
+  --accent: #3478f6;
+  --accent-hover: #2563eb;
+  --accent-soft: #eef4ff;
+  --accent-border: #c7d9ff;
+}
+
+html[data-accent="purple"] {
+  --accent: #8057e8;
+  --accent-hover: #6d3fd1;
+  --accent-soft: #f3efff;
+  --accent-border: #d8cbff;
+}
+
+html[data-accent="rose"] {
+  --accent: #e34b70;
+  --accent-hover: #c93659;
+  --accent-soft: #fff0f4;
+  --accent-border: #ffcbd7;
+}
+
+html[data-accent="amber"] {
+  --accent: #d99118;
+  --accent-hover: #b8750a;
+  --accent-soft: #fff7e7;
+  --accent-border: #f4d494;
+}
+
+html[data-accent="mono"] {
+  --accent: #475569;
+  --accent-hover: #334155;
+  --accent-soft: #f1f5f9;
+  --accent-border: #cbd5e1;
+}
+
+/* =========================================================
+   DARK
+   ========================================================= */
+
+html.dark {
+  color-scheme: dark;
+
+  --background: #0e101b;
+  --foreground: #f8f7ff;
+
+  --surface: #171927;
+  --surface-subtle: #1b1e2d;
+  --surface-muted: #232638;
+
+  --border: #2c3045;
+  --border-subtle: #25283a;
+
+  --text-primary: #f8f7ff;
+  --text-secondary: #b7b8c9;
+  --text-muted: #85879b;
+
+  --accent: #a78bfa;
+  --accent-hover: #c4b5fd;
+  --accent-soft: #302451;
+  --accent-border: #5b45a1;
+  --accent-secondary: #ff8a65;
+  --accent-secondary-soft: #4d2a25;
+
+  --danger: #ff7180;
+  --danger-soft: #421b22;
+
+  --warning: #f1b94d;
+  --warning-soft: #3d2d12;
+
+  --info: #70a2ff;
+  --info-soft: #182d50;
+
+  --sidebar-bg: #121420;
+  --sidebar-border: #292d40;
+  --sidebar-text: #a6a8ba;
+  --sidebar-hover: #1c1f2d;
+  --sidebar-active: #302451;
+  --sidebar-active-text: #c4b5fd;
+
+  --topbar-bg: rgba(18, 20, 32, 0.96);
+  --topbar-border: #292d40;
+
+  --card-bg: #171927;
+  --card-border: #2c3045;
+
+  --input-bg: #1b1e2d;
+  --input-border: #363b53;
+
+  --shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.25);
+
+  --shadow-card:
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 10px 32px rgba(0, 0, 0, 0.22);
+
+  --shadow-lg:
+    0 18px 45px rgba(0, 0, 0, 0.3);
+}
+
+html.dark[data-accent="blue"] {
+  --accent: #70a2ff;
+  --accent-hover: #8bb7ff;
+  --accent-soft: #172f54;
+  --accent-border: #315b91;
+}
+
+html.dark[data-accent="purple"] {
+  --accent: #ad8cff;
+  --accent-hover: #c2a8ff;
+  --accent-soft: #2a2050;
+  --accent-border: #59459b;
+  --accent-secondary: #ff8a65;
+  --accent-secondary-soft: #4d2a25;
+}
+
+html.dark[data-accent="rose"] {
+  --accent: #ff7997;
+  --accent-hover: #ff9bb0;
+  --accent-soft: #471c28;
+  --accent-border: #814052;
+}
+
+html.dark[data-accent="amber"] {
+  --accent: #f2b94e;
+  --accent-hover: #f8cb72;
+  --accent-soft: #3f2c0f;
+  --accent-border: #77551e;
+}
+
+html.dark[data-accent="mono"] {
+  --accent: #e4e4e7;
+  --accent-hover: #fafafa;
+  --accent-soft: #27272a;
+  --accent-border: #52525b;
+}
+
+/* Legacy feature pages use a small set of fixed light-theme utility colors.
+   Keep those pages readable when the user switches the app to dark mode. */
+html.dark [class*="bg-white"] {
+  background-color: var(--card-bg) !important;
+}
+
+html.dark [class*="bg-[#f7faf8]"],
+html.dark [class*="bg-[#f8faf9]"],
+html.dark [class*="bg-[#fbfcfb]"],
+html.dark [class*="bg-[#f5f9f7]"],
+html.dark [class*="bg-[#f1f8f4]"] {
+  background-color: var(--surface-subtle) !important;
+}
+
+html.dark [class*="border-[#e4ebe7]"],
+html.dark [class*="border-[#edf1ef]"],
+html.dark [class*="border-[#e5ece8]"],
+html.dark [class*="border-[#e2eae5]"] {
+  border-color: var(--border) !important;
+}
+
+html.dark [class*="text-[#10231c]"],
+html.dark [class*="text-[#30443c]"],
+html.dark [class*="text-[#30463d]"],
+html.dark [class*="text-[#50635b]"],
+html.dark [class*="text-[#60736b]"],
+html.dark [class*="text-[#71817a]"],
+html.dark [class*="text-[#82908a]"],
+html.dark [class*="text-[#91a09a]"] {
+  color: var(--text-secondary) !important;
+}
+
+html.dark [class*="text-[#10231c]"] {
+  color: var(--text-primary) !important;
+}
+
+/* =========================================================
+   BASE
+   ========================================================= */
 
 * {
   box-sizing: border-box;
@@ -42,26 +263,128 @@ html {
 }
 
 body {
+  min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(
-      circle at 72% 8%,
-      rgba(217, 247, 233, 0.45),
-      transparent 25%
-    ),
-    var(--background);
+
+  background: var(--background);
   color: var(--foreground);
+
   font-family:
-    Arial,
-    Helvetica,
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
     sans-serif;
+
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+html:not(.dark) body {
+  background:
+    radial-gradient(
+      circle at 80% 0%,
+      rgba(225, 213, 255, 0.28),
+      transparent 26%
+    ),
+    var(--background);
+}
+
+/* Keep legacy page-level utility colors aligned with the current product palette. */
+[class*="text-[#10231c]"],
+[class*="text-[#078653]"],
+[class*="text-[#16a36a]"] {
+  color: var(--text-primary) !important;
+}
+
+[class*="text-[#078653]"],
+[class*="text-[#16a36a]"] {
+  color: var(--accent) !important;
+}
+
+[class*="text-[#60736b]"],
+[class*="text-[#71817a]"],
+[class*="text-[#82908a]"],
+[class*="text-[#91a09a]"],
+[class*="text-[#a0ada7]"],
+[class*="text-[#30453c]"],
+[class*="text-[#30463d]"],
+[class*="text-[#50665c]"] {
+  color: var(--text-secondary) !important;
+}
+
+[class*="text-[#10231c]"] {
+  color: var(--text-primary) !important;
+}
+
+[class*="bg-[#078653]"],
+[class*="bg-[#16a36a]"] {
+  background-color: var(--accent) !important;
+}
+
+[class*="bg-[#e9f8f0]"],
+[class*="bg-[#ecfdf5]"],
+[class*="bg-[#d9f7e9]"],
+[class*="bg-[#f1f8f4]"],
+[class*="bg-[#edf8f2]"],
+[class*="bg-[#e2f7eb]"],
+[class*="bg-[#dff6ea]"],
+[class*="bg-[#effaf4]"] {
+  background-color: var(--accent-soft) !important;
+}
+
+[class*="bg-[#078653]"],
+[class*="bg-[#16a36a]"] {
+  background-color: var(--accent) !important;
+}
+
+[class*="bg-[#f7faf8]"],
+[class*="bg-[#f8faf9]"],
+[class*="bg-[#f5f8f6]"],
+[class*="bg-[#edf3ef]"] {
+  background-color: var(--surface-subtle) !important;
+}
+
+[class*="border-[#e4ebe7]"],
+[class*="border-[#edf1ef]"],
+[class*="border-[#e2eae5]"],
+[class*="border-[#dfe8e3]"],
+[class*="border-[#dfe8e2]"] {
+  border-color: var(--border) !important;
+}
+
+html.dark [class*="text-emerald-700"],
+html.dark [class*="text-emerald-800"],
+html.dark [class*="text-emerald-900"],
+html.dark [class*="text-[#60736b]"],
+html.dark [class*="text-[#71817a]"],
+html.dark [class*="text-[#82908a]"],
+html.dark [class*="text-[#91a09a]"] {
+  color: var(--text-secondary) !important;
+}
+
+html.dark [class*="text-[#10231c]"],
+html.dark [class*="text-[#30463d]"],
+html.dark [class*="text-[#50665c]"] {
+  color: var(--text-primary) !important;
+}
+
+html.dark body {
+  background:
+    radial-gradient(
+      circle at 80% 0%,
+      rgba(124, 58, 237, 0.12),
+      transparent 26%
+    ),
+    var(--background);
+}
+
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -69,7 +392,335 @@ button {
   cursor: pointer;
 }
 
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 ::selection {
-  background: #b7efd3;
-  color: #056b43;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+/* =========================================================
+   SEMANTIC COMPONENTS
+   ========================================================= */
+
+.wl-page {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--text-primary);
+}
+
+.wl-sidebar {
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  border-color: var(--sidebar-border);
+}
+
+.wl-topbar {
+  background: var(--topbar-bg);
+  color: var(--text-primary);
+  border-color: var(--topbar-border);
+  backdrop-filter: blur(12px);
+}
+
+.wl-card {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.wl-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.wl-input {
+  width: 100%;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-md);
+}
+
+.wl-input::placeholder {
+  color: var(--text-muted);
+}
+
+.wl-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Modal forms use one readable control treatment across every feature. */
+.wl-modal-form input,
+.wl-modal-form select,
+.wl-modal-form textarea {
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--input-border) !important;
+}
+
+.wl-modal-form input::placeholder,
+.wl-modal-form textarea::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 1;
+}
+
+.wl-modal-form label {
+  color: var(--text-secondary);
+}
+
+.wl-modal-form input:focus,
+.wl-modal-form select:focus,
+.wl-modal-form textarea:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+.wl-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  min-height: 42px;
+  padding: 0 12px;
+
+  border-radius: 11px;
+
+  color: var(--sidebar-text);
+
+  transition:
+    color 150ms ease,
+    background 150ms ease;
+}
+
+.wl-nav-item:hover {
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-hover);
+}
+
+.wl-nav-item.active {
+  background: var(--sidebar-active);
+  color: var(--sidebar-active-text);
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.wl-button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: 42px;
+  padding: 0 16px;
+
+  border: 0;
+  border-radius: 11px;
+
+  background: var(--accent);
+  color: #ffffff;
+
+  font-weight: 600;
+
+  box-shadow:
+    0 4px 12px rgba(8, 166, 106, 0.18);
+
+  transition:
+    background 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.wl-button-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.wl-button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: 42px;
+  padding: 0 16px;
+
+  border: 1px solid var(--border);
+  border-radius: 11px;
+
+  background: var(--surface);
+  color: var(--text-primary);
+
+  font-weight: 600;
+}
+
+.wl-button-secondary:hover {
+  background: var(--surface-hover);
+}
+
+/* =========================================================
+   BADGES
+   ========================================================= */
+
+.wl-badge {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 28px;
+  padding: 0 10px;
+
+  border-radius: 999px;
+
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* =========================================================
+   ICON CONTAINER
+   ========================================================= */
+
+.wl-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 12px;
+
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* =========================================================
+   DARK/LIGHT SAFETY - Tailwind Overrides
+   ========================================================= */
+
+/* Text colors */
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 {
+  color: var(--text-primary) !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500 {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .text-slate-400,
+html.dark .text-slate-300 {
+  color: var(--text-muted) !important;
+}
+
+/* Background colors */
+html.dark .bg-white,
+html.dark .bg-slate-50 {
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .bg-slate-900,
+html.dark .bg-slate-800 {
+  background: var(--card-bg) !important;
+}
+
+html.dark .bg-slate-100 {
+  background: var(--surface-subtle) !important;
+}
+
+/* Border colors */
+html.dark .border-slate-200,
+html.dark .border-slate-300 {
+  border-color: var(--border) !important;
+}
+
+html.dark .border-slate-800 {
+  border-color: var(--border) !important;
+}
+
+/* Form elements */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--input-border) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* Ring focus */
+html.dark .ring-blue-500 {
+  --tw-ring-color: var(--accent) !important;
+}
+
+/* Hover states */
+html.dark .hover\:bg-slate-800:hover {
+  background: var(--sidebar-hover) !important;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1024px) {
+  :root {
+    --radius-card: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --radius-card: 14px;
+  }
+}
+
+/* =========================================================
+   SCROLLBAR STYLING
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-subtle);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-subtle);
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: var(--surface-subtle);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: var(--border);
 }

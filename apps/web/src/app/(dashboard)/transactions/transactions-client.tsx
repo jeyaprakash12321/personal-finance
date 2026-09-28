@@ -6,21 +6,27 @@ import {
   CalendarDays,
   Check,
   Loader2,
+  Pencil,
   Plus,
   Search,
   SlidersHorizontal,
+  Trash2,
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useConfirmDialog } from "../../components/ui/dialog-provider";
 
 type Transaction = {
   id: string;
+  accountId: string;
   categoryName: string;
   description: string | null;
   amount: string;
   type: "income" | "expense";
   transactionDate: string;
+  linkedType?: "credit_card" | "loan" | "insurance" | null;
+  linkedId?: string | null;
 };
 
 type Account = {
@@ -28,6 +34,7 @@ type Account = {
   name: string;
   type: string;
   currency: string;
+  isActive?: boolean;
 };
 
 type Category = {
@@ -35,6 +42,8 @@ type Category = {
   name: string;
   type: "income" | "expense";
 };
+
+type LinkedFinancialItem = { id: string; label: string };
 
 type FilterType = "all" | "income" | "expense";
 
@@ -44,6 +53,8 @@ export function TransactionsClient({
   transactions: Transaction[];
 }) {
   const router = useRouter();
+  const { confirm, notify } = useConfirmDialog();
+  const [transactionList, setTransactionList] = useState(transactions);
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<FilterType>("all");
@@ -62,6 +73,13 @@ export function TransactionsClient({
   >("expense");
   const [accountId, setAccountId] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [linkedItems, setLinkedItems] = useState({
+    credit_card: [] as LinkedFinancialItem[],
+    loan: [] as LinkedFinancialItem[],
+    insurance: [] as LinkedFinancialItem[],
+  });
+  const [linkedType, setLinkedType] = useState<"" | "credit_card" | "loan" | "insurance">("");
+  const [linkedId, setLinkedId] = useState("");
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
@@ -79,7 +97,8 @@ export function TransactionsClient({
   const filteredTransactions = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return transactions.filter((transaction) => {
+    return transactionList
+      .filter((transaction) => {
       const matchesSearch =
         !query ||
         transaction.description?.toLowerCase().includes(query) ||
@@ -93,9 +112,20 @@ export function TransactionsClient({
         new Date(transaction.transactionDate).toISOString().slice(0, 10) ===
           dateFilter;
 
-      return matchesSearch && matchesType && matchesDate;
-    });
-  }, [transactions, search, typeFilter, dateFilter]);
+        return matchesSearch && matchesType && matchesDate;
+      })
+      .sort(
+        (left, right) =>
+          new Date(right.transactionDate).getTime() -
+          new Date(left.transactionDate).getTime(),
+      );
+  }, [transactionList, search, typeFilter, dateFilter]);
+
+  async function reloadTransactions() {
+    const response = await fetch("/api/transactions", { cache: "no-store" });
+    if (!response.ok) throw new Error("Failed to refresh transactions");
+    setTransactionList(await response.json());
+  }
 
   const totalIncome = filteredTransactions
     .filter((transaction) => transaction.type === "income")
@@ -108,39 +138,72 @@ export function TransactionsClient({
   const hasActiveFilters =
     search.trim() !== "" || typeFilter !== "all" || dateFilter !== "";
 
-  async function openTransactionModal() {
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
+  async function openTransactionModal(editTx?: Transaction) {
     setShowModal(true);
     setFormError("");
     setLoadingFormData(true);
 
+    if (editTx) {
+      setEditingTransaction(editTx);
+      setAmount(editTx.amount);
+      setDescription(editTx.description || "");
+      setTransactionType(editTx.type);
+      setTransactionDate(new Date(editTx.transactionDate).toISOString().slice(0, 10));
+    } else {
+      setEditingTransaction(null);
+      setAmount("");
+      setDescription("");
+      setTransactionType("expense");
+      setLinkedType("");
+      setLinkedId("");
+      setTransactionDate(new Date().toISOString().slice(0, 10));
+    }
+
     try {
-      const [accountsResponse, categoriesResponse] = await Promise.all([
+      const [accountsResponse, categoriesResponse, cardsResponse, loansResponse, insuranceResponse] = await Promise.all([
         fetch("/api/accounts"),
         fetch("/api/categories"),
+        fetch("/api/credit-cards"),
+        fetch("/api/loans"),
+        fetch("/api/insurance"),
       ]);
 
       if (!accountsResponse.ok || !categoriesResponse.ok) {
         throw new Error("Failed to load accounts or categories");
       }
 
-      const [accountsData, categoriesData] = await Promise.all([
-        accountsResponse.json(),
-        categoriesResponse.json(),
-      ]);
+      const accountsData: Account[] = await accountsResponse.json();
+      const categoriesData: Category[] = await categoriesResponse.json();
+      const cardsData = cardsResponse.ok ? await cardsResponse.json() : [];
+      const loansData = loansResponse.ok ? await loansResponse.json() : [];
+      const insuranceData = insuranceResponse.ok ? await insuranceResponse.json() : [];
 
       setAccounts(accountsData);
       setCategories(categoriesData);
+      setLinkedItems({
+        credit_card: cardsData.map((item: { id: string; cardName: string; last4: string }) => ({ id: item.id, label: `${item.cardName} ····${item.last4}` })),
+        loan: loansData.map((item: { id: string; lender: string }) => ({ id: item.id, label: item.lender })),
+        insurance: insuranceData.map((item: { id: string; provider: string; policyNumber: string }) => ({ id: item.id, label: `${item.provider} · ${item.policyNumber}` })),
+      });
 
-      if (accountsData.length > 0) {
-        setAccountId(accountsData[0].id);
-      }
+      if (!editTx) {
+        const firstActive = accountsData.find((a) => a.isActive !== false) ?? accountsData[0];
+        setAccountId(firstActive?.id ?? "");
 
-      const matchingCategories = categoriesData.filter(
-        (category: Category) => category.type === "expense"
-      );
-
-      if (matchingCategories.length > 0) {
-        setCategoryId(matchingCategories[0].id);
+        const matchingCategories = categoriesData.filter(
+          (category: Category) => category.type === transactionType
+        );
+        setCategoryId(matchingCategories[0]?.id ?? categoriesData[0]?.id ?? "");
+      } else {
+        const cat = categoriesData.find(
+          (c: Category) => c.name === editTx.categoryName && c.type === editTx.type
+        );
+        setCategoryId(cat?.id ?? categoriesData[0]?.id ?? "");
+        setAccountId(editTx.accountId);
+        setLinkedType(editTx.linkedType ?? "");
+        setLinkedId(editTx.linkedId ?? "");
       }
     } catch (error) {
       console.error(error);
@@ -156,6 +219,7 @@ export function TransactionsClient({
     }
 
     setShowModal(false);
+    setEditingTransaction(null);
     setFormError("");
     setAmount("");
     setDescription("");
@@ -177,6 +241,30 @@ export function TransactionsClient({
     setCategoryId(matchingCategory?.id ?? "");
   }
 
+  async function handleDeleteTransaction(transaction: Transaction) {
+    if (!(await confirm({ title: "Delete transaction?", description: "This transaction will be permanently removed from your financial history.", confirmLabel: "Delete transaction", destructive: true }))) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/transactions/${transaction.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        notify(data?.message || "Failed to delete transaction", "error");
+        return;
+      }
+
+      await reloadTransactions();
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      notify("Failed to delete transaction.", "error");
+    }
+  }
+
   async function handleSaveTransaction() {
     setFormError("");
 
@@ -195,6 +283,11 @@ export function TransactionsClient({
       return;
     }
 
+    if (linkedType && !linkedId) {
+      setFormError("Select the related financial item.");
+      return;
+    }
+
     if (!transactionDate) {
       setFormError("Select a transaction date.");
       return;
@@ -203,8 +296,12 @@ export function TransactionsClient({
     setSaving(true);
 
     try {
-      const response = await fetch("/api/transactions", {
-        method: "POST",
+      const isEdit = !!editingTransaction;
+      const url = isEdit ? `/api/transactions/${editingTransaction.id}` : "/api/transactions";
+      const method = isEdit ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -214,6 +311,8 @@ export function TransactionsClient({
           amount: Number(amount).toFixed(2),
           type: transactionType,
           description: description.trim() || undefined,
+          linkedType: linkedType || null,
+          linkedId: linkedId || null,
           transactionDate: new Date(
             `${transactionDate}T12:00:00`
           ).toISOString(),
@@ -229,6 +328,7 @@ export function TransactionsClient({
       }
 
       closeTransactionModal();
+      await reloadTransactions();
       router.refresh();
     } catch (error) {
       console.error(error);
@@ -271,7 +371,7 @@ export function TransactionsClient({
 
             <button
               type="button"
-              onClick={openTransactionModal}
+              onClick={() => void openTransactionModal()}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#078653] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(7,134,83,0.18)] transition hover:bg-[#056b43]"
             >
               <Plus className="h-4 w-4" />
@@ -286,7 +386,7 @@ export function TransactionsClient({
               value={filteredTransactions.length.toString()}
               description={
                 hasActiveFilters
-                  ? `Showing ${filteredTransactions.length} of ${transactions.length}`
+                  ? `Showing ${filteredTransactions.length} of ${transactionList.length}`
                   : "Recorded transactions"
               }
             />
@@ -302,6 +402,7 @@ export function TransactionsClient({
               label="Expenses"
               value={formatCurrency(totalExpenses)}
               description="Total spending"
+              negative
             />
           </div>
 
@@ -447,6 +548,10 @@ export function TransactionsClient({
                         <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-[#91a09a]">
                           Amount
                         </th>
+
+                        <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-[#91a09a]">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
 
@@ -455,6 +560,8 @@ export function TransactionsClient({
                         <TransactionRow
                           key={transaction.id}
                           transaction={transaction}
+                          onEdit={() => openTransactionModal(transaction)}
+                          onDelete={() => handleDeleteTransaction(transaction)}
                         />
                       ))}
                     </tbody>
@@ -467,6 +574,8 @@ export function TransactionsClient({
                     <MobileTransactionRow
                       key={transaction.id}
                       transaction={transaction}
+                      onEdit={() => openTransactionModal(transaction)}
+                      onDelete={() => handleDeleteTransaction(transaction)}
                     />
                   ))}
                 </div>
@@ -476,7 +585,7 @@ export function TransactionsClient({
         </div>
       </main>
 
-      {/* Add Transaction modal */}
+      {/* Add / edit transaction modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#10231c]/35 p-4 backdrop-blur-sm">
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#e4ebe7] bg-white shadow-[0_25px_70px_rgba(16,35,28,0.18)]">
@@ -488,7 +597,7 @@ export function TransactionsClient({
                 </p>
 
                 <h2 className="mt-1 text-xl font-semibold tracking-[-0.02em] text-[#10231c]">
-                  Add Transaction
+                  {editingTransaction ? "Edit Transaction" : "Add Transaction"}
                 </h2>
               </div>
 
@@ -516,6 +625,11 @@ export function TransactionsClient({
                     <Loader2 className="h-5 w-5 animate-spin text-[#078653]" />
                     Loading account and category data...
                   </div>
+                </div>
+              ) : accounts.length === 0 ? (
+                <div className="rounded-xl border border-[#e4ebe7] bg-[#f8faf9] px-4 py-6 text-center text-sm text-[#60736b]">
+                  <p className="font-semibold text-[#10231c]">No accounts found</p>
+                  <p className="mt-1">Create an account on the Accounts page before adding transactions.</p>
                 </div>
               ) : (
                 <>
@@ -647,6 +761,35 @@ export function TransactionsClient({
                     </select>
                   </div>
 
+                  {/* Related financial item */}
+                  <div>
+                    <label htmlFor="transaction-linked-type" className="mb-2 block text-sm font-medium text-[#30443c]">
+                      Related financial item <span className="text-[#91a09a]">(optional)</span>
+                    </label>
+                    <select
+                      id="transaction-linked-type"
+                      value={linkedType}
+                      onChange={(event) => { setLinkedType(event.target.value as typeof linkedType); setLinkedId(""); }}
+                      className="h-11 w-full rounded-xl border border-[#e4ebe7] bg-[#f8faf9] px-4 text-sm text-[#10231c] outline-none transition focus:border-[#9bd8bb] focus:bg-white focus:ring-4 focus:ring-[#d9f7e9]"
+                    >
+                      <option value="">None — regular account transaction</option>
+                      <option value="credit_card">Credit card payment or purchase</option>
+                      <option value="loan">Loan repayment</option>
+                      <option value="insurance">Insurance premium</option>
+                    </select>
+                    {linkedType && (
+                      <select
+                        value={linkedId}
+                        onChange={(event) => setLinkedId(event.target.value)}
+                        className="mt-2 h-11 w-full rounded-xl border border-[#e4ebe7] bg-[#f8faf9] px-4 text-sm text-[#10231c] outline-none transition focus:border-[#9bd8bb] focus:bg-white focus:ring-4 focus:ring-[#d9f7e9]"
+                        required
+                      >
+                        <option value="">Select {linkedType.replace("_", " ")}</option>
+                        {linkedItems[linkedType].map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                      </select>
+                    )}
+                  </div>
+
                   {/* Date */}
                   <div>
                     <label
@@ -700,7 +843,7 @@ export function TransactionsClient({
                   ) : (
                     <>
                       <Check className="h-4 w-4" />
-                      Save Transaction
+                    {editingTransaction ? "Save Changes" : "Save Transaction"}
                     </>
                   )}
                 </button>
@@ -718,11 +861,13 @@ function SummaryCard({
   value,
   description,
   positive = false,
+  negative = false,
 }: {
   label: string;
   value: string;
   description: string;
   positive?: boolean;
+  negative?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-[#e4ebe7] bg-white p-5 shadow-[0_8px_30px_rgba(16,35,28,0.04)]">
@@ -730,7 +875,7 @@ function SummaryCard({
 
       <p
         className={`mt-2 text-2xl font-semibold tracking-[-0.03em] ${
-          positive ? "text-[#078653]" : "text-[#10231c]"
+          positive ? "text-[var(--accent)]" : negative ? "text-[var(--danger)]" : "text-[#10231c]"
         }`}
       >
         {value}
@@ -829,8 +974,12 @@ function EmptyState({
 
 function TransactionRow({
   transaction,
+  onEdit,
+  onDelete,
 }: {
   transaction: Transaction;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const isIncome = transaction.type === "income";
 
@@ -869,14 +1018,39 @@ function TransactionRow({
       >
         {formatAmount(transaction.amount, transaction.type)}
       </td>
+
+      <td className="px-6 py-4 text-right">
+        <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={onEdit}
+            title="Edit Transaction"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#60736b] transition hover:bg-[#edf8f2] hover:text-[#078653]"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Delete Transaction"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#91a09a] transition hover:bg-[#fff0f0] hover:text-[#e05255]"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </td>
     </tr>
   );
 }
 
 function MobileTransactionRow({
   transaction,
+  onEdit,
+  onDelete,
 }: {
   transaction: Transaction;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const isIncome = transaction.type === "income";
 
@@ -897,13 +1071,33 @@ function MobileTransactionRow({
         </div>
       </div>
 
-      <p
-        className={`shrink-0 text-sm font-semibold ${
-          isIncome ? "text-[#078653]" : "text-[#e05255]"
-        }`}
-      >
-        {formatAmount(transaction.amount, transaction.type)}
-      </p>
+      <div className="flex items-center gap-3">
+        <p
+          className={`shrink-0 text-sm font-semibold ${
+            isIncome ? "text-[#078653]" : "text-[#e05255]"
+          }`}
+        >
+          {formatAmount(transaction.amount, transaction.type)}
+        </p>
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label="Edit Transaction"
+          title="Edit Transaction"
+          className="p-1 text-[#60736b] hover:text-[#078653]"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label="Delete Transaction"
+          title="Delete Transaction"
+          className="p-1 text-[#91a09a] hover:text-[#e05255]"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }

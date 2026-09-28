@@ -1,60 +1,138 @@
 # Skill: Adding New Wealthly Features
 
+## Objective
+
+Build features as complete vertical slices while preserving architecture, security, financial-data integrity, and existing product behavior.
+
 ## Process
 
-For a new feature:
-
 1. Define user-facing behavior.
-2. Inspect existing schema and architecture.
-3. Design DB changes.
-4. Create migration.
-5. Create shared validation/types if appropriate.
-6. Create Fastify API.
-7. Add authentication and user scoping.
-8. Add Next proxy.
-9. Add frontend page/components.
-10. Add loading/error/empty states.
-11. Test unauthorized access.
-12. Test two-user isolation.
-13. Test CRUD.
-14. Run typecheck/build.
-15. Review for financial-data correctness.
+2. Inspect schema/architecture.
+3. Inspect related API/frontend patterns.
+4. Identify auth/authorization.
+5. Design DB changes.
+6. Create migration if needed.
+7. Add validation/shared types where appropriate.
+8. Implement Fastify API.
+9. Add authentication/user scoping.
+10. Add Next proxy.
+11. Implement frontend.
+12. Add loading/error/empty states.
+13. Add unit tests for isolated rules.
+14. Add integration tests for API/database boundaries.
+15. Add E2E/manual coverage for critical journeys.
+16. Test unauthorized and cross-user access.
+17. Test edge cases.
+18. Run verification.
+19. Review final diff.
 
-## Future modules
+## Define behavior first
 
-Credit cards:
-- cards
-- limits
-- outstanding
-- payment dates
-- transactions
+Record:
 
-Loans:
-- lender
-- principal
-- outstanding
-- rate
-- EMI/payment schedule
+- user goal
+- success behavior
+- validation failures
+- auth behavior
+- loading/empty/error states
+- destructive behavior
+- non-goals
 
-Insurance:
-- provider
-- policy
-- coverage
-- premium
-- renewal
+If behavior is materially ambiguous, stop for clarification.
 
-Investments:
-- holdings
-- quantities
-- cost basis
-- current value
-- P&L
+## Explore
 
-Net worth:
-assets - liabilities
+Inspect:
 
-## Integration security
+- schema/migrations
+- related models
+- Fastify routes/services
+- Next routes
+- frontend
+- validation/types
+- tests
+- package scripts
+- project docs
+- relevant skills
 
-Bank and broker integrations must use provider authentication/authorization flows.
+Reuse existing patterns.
 
-Never ask users to paste bank passwords into Wealthly.
+## Database
+
+Inspect actual relationships and existing data before schema changes.
+
+Protect historical financial data.
+
+## Backend
+
+Implement:
+
+- validation
+- authentication
+- authorization
+- user scoping
+- business logic
+- persistence
+- predictable responses/errors
+
+Never use browser `userId` for authorization.
+
+## Proxy
+
+Ensure:
+
+- cookie is read
+- missing auth -> 401
+- Authorization forwarded
+- body forwarded where needed
+- status codes preserved
+- response safely handled
+
+## Frontend
+
+Implement:
+
+- page/components
+- forms
+- fetching
+- loading/error/empty states
+- validation
+- responsive behavior
+
+Follow existing Wealthly UI.
+
+## Security test matrix
+
+For user-owned features:
+
+- unauthenticated
+- own resource
+- cross-user read
+- cross-user update
+- cross-user delete
+- forged userId
+- invalid resource
+- invalid related resource
+
+## Multi-agent feature workflow
+
+### Explorer
+No code changes. Report architecture, affected files, risks.
+
+### Challenger
+No code changes. Independently review data model, auth, concurrency, edge cases, compatibility, and test strategy.
+
+### Human
+Resolve architectural/product disagreements.
+
+### Implementer
+Implement approved plan and tests.
+
+### Reviewer
+Adversarially inspect correctness, security, missing tests, complexity, and scope.
+
+Agent consensus is not proof of correctness.
+
+## Completion
+
+A feature is complete only when appropriate unit/integration/E2E coverage exists, security is verified, typecheck/lint/build pass as applicable, and the final diff is reviewed.

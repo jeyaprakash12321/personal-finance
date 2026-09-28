@@ -1,32 +1,72 @@
-# Wealthly AI Agent Kit
+# Wealthly AI Agent System
 
-This directory contains the context and engineering rules for an AI coding agent taking over the Wealthly repository.
+## Structure
 
-## Start here
+```text
+AGENTS.md
+PROJECT_CONTEXT.md
+REPOSITORY_CHECKLIST.md
+ROADMAP.md
+skills/
+  00-agent-workflow.md
+  01-authentication.md
+  02-next-api-proxy.md
+  03-transactions-and-categories.md
+  04-database-and-migrations.md
+  05-testing-and-debugging.md
+  06-ui-and-product.md
+  07-feature-development.md
+  08-code-quality.md
+```
 
-Read in this order:
+## Why these files are separate
+
+### AGENTS.md
+Short operational contract for every coding agent. It should stay relatively stable.
+
+### PROJECT_CONTEXT.md
+Architecture/product snapshot. Update it when durable architecture or product structure changes.
+
+### REPOSITORY_CHECKLIST.md
+Investigation map. It tells an agent where to look before making cross-cutting changes.
+
+### ROADMAP.md
+Product sequencing. It prevents agents from turning incidental discoveries into scope creep.
+
+### skills/
+Detailed technical procedures. Read only the relevant skills for a task.
+
+## Recommended agent loading order
 
 1. `AGENTS.md`
-2. `PROJECT_CONTEXT.md`
-3. `CURRENT_TASK.md`
-4. `REPOSITORY_CHECKLIST.md`
-5. all files in `skills/`
-6. `ROADMAP.md`
+2. `skills/00-agent-workflow.md`
+3. `PROJECT_CONTEXT.md` when architecture/context is relevant
+4. `REPOSITORY_CHECKLIST.md` for broad/architectural changes
+5. relevant domain skills
+6. `ROADMAP.md` only when product scope/priorities matter
 
-## Important
+## Source-of-truth rule
 
-These documents describe the known state from the current development conversation.
+These documents are guidance and durable context. The repository is authoritative for exact current implementation.
 
-The repository is the source of truth for exact implementation details.
+If a document says a known issue exists, verify it before changing code.
 
-Before editing:
-- inspect the repository
-- inspect current files
-- search for duplicated auth/API patterns
-- reproduce current failures
+If implementation intentionally changes architecture, update the relevant context document after the change.
 
-Do not invent missing code or silently redesign the product.
+## Local API and database tools
 
-## Human preference
+Start PostgreSQL and the database browser:
 
-When communicating file changes to the human, provide complete file contents rather than partial patches.
+```bash
+docker compose up -d postgres adminer
+pnpm --filter @personal-finance/db migrate
+pnpm --filter api seed
+```
+
+Then open:
+
+- Swagger UI: http://localhost:4000/docs
+- OpenAPI JSON: http://localhost:4000/openapi.json
+- Adminer: http://localhost:8080
+
+In Adminer use `PostgreSQL`, server `postgres`, user `finance`, password `finance`, and database `personal_finance`. The demo API user is `demo@wealthly.local` with password `Demo12345!`.

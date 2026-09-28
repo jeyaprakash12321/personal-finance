@@ -1,4 +1,10 @@
-# Wealthly Roadmap
+# Wealthly — Product Roadmap
+
+## Purpose
+
+Define product sequencing and protect the stability of the core financial ledger.
+
+Roadmap items are product priorities, not permission to implement future work during unrelated tasks.
 
 ## Phase 1 — Stability
 
@@ -58,3 +64,7 @@
 ## Product rule
 
 Do not let future roadmap work destabilize the core financial ledger.
+
+Do not implement roadmap items merely because an agent notices an opportunity during another task.
+
+If a task conflicts with roadmap sequencing, follow the explicit task and existing architecture; surface scope concerns rather than silently expanding work.

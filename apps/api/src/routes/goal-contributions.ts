@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   db,
   eq,
+  and,
   goalContributions,
   goals,
 } from "@personal-finance/db";
@@ -82,6 +83,44 @@ export default async function goalContributionRoutes(
             userId
           )
         );
+    }
+  );
+
+  app.delete(
+    "/goal-contributions/:id",
+    {
+      preHandler: [app.authenticate],
+    },
+    async (request: any, reply: any) => {
+      const { id } = request.params;
+      const userId = request.user.id;
+
+      const [existing] = await db
+        .select()
+        .from(goalContributions)
+        .where(
+          and(
+            eq(goalContributions.id, id),
+            eq(goalContributions.userId, userId)
+          )
+        );
+
+      if (!existing) {
+        return reply.code(404).send({
+          message: "Goal contribution not found",
+        });
+      }
+
+      await db
+        .delete(goalContributions)
+        .where(
+          and(
+            eq(goalContributions.id, id),
+            eq(goalContributions.userId, userId)
+          )
+        );
+
+      return reply.send({ message: "Goal contribution deleted successfully" });
     }
   );
 }

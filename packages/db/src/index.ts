@@ -1,6 +1,6 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
 
 import * as schema from "./schema.js";
 
@@ -16,6 +16,10 @@ export const db = drizzle(client, {
   schema,
 });
 
+export async function closeDb() {
+  await client.end({ timeout: 1 });
+}
+
 export {
   users,
   accounts,
@@ -24,11 +28,28 @@ export {
   goals,
   goalContributions,
   budgets,
+  userPreferences,
+  themeEnum,
+  accentEnum,
+  creditCards,
+  cardStatusEnum,
+  loans,
+  loanTypeEnum,
+  insurancePolicies,
+  policyTypeEnum,
+  bankConnections,
+  connectionStatusEnum,
+  portfolioHoldings,
+  assetTypeEnum,
+  netWorthSnapshots,
+  recurringTransactions,
+  recurringFrequencyEnum,
 } from "./schema.js";
 
 export {
   and,
   eq,
   gte,
+  lte,
   sql,
 } from "drizzle-orm";

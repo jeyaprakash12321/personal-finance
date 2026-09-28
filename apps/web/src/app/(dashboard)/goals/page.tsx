@@ -3,8 +3,6 @@ import { redirect } from "next/navigation";
 
 import { GoalsClient } from "./goals-client";
 
-const API_URL = "http://localhost:4000";
-
 async function getGoals() {
   const cookieStore = await cookies();
   const token = cookieStore.get("wealthly_token")?.value;
@@ -13,10 +11,12 @@ async function getGoals() {
     redirect("/login");
   }
 
-  const response = await fetch(`${API_URL}/goals`, {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  const response = await fetch(`${baseUrl}/api/goals`, {
     cache: "no-store",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Cookie: `wealthly_token=${token}`,
     },
   });
 

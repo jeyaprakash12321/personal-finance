@@ -15,5 +15,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  adminer:
+    image: adminer:4
+    container_name: personal-finance-adminer
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+
 volumes:
   postgres_data:

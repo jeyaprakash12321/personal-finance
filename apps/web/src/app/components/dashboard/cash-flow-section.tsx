@@ -28,7 +28,7 @@ export function CashFlowSection({
 
   useEffect(() => {
     if (range === "30d") {
-      setData(initialData);
+      queueMicrotask(() => setData(initialData));
       return;
     }
 
@@ -37,7 +37,7 @@ export function CashFlowSection({
 
       try {
         const response = await fetch(
-          `http://localhost:4000/dashboard/cash-flow?range=${range}`
+          `/api/dashboard/cash-flow?range=${range}`
         );
 
         if (!response.ok) {

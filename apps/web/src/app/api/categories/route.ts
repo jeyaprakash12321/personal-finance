@@ -1,38 +1,43 @@
-import { cookies } from "next/headers";
+import { authenticatedFetch } from "../../../lib/api-client";
 import { NextResponse } from "next/server";
 
-const API_URL = "http://localhost:4000";
-
 export async function GET() {
-  const cookieStore = await cookies();
+  const response = await authenticatedFetch("/categories");
 
-  const token =
-    cookieStore.get("wealthly_token")?.value;
-
-  if (!token) {
-    return NextResponse.json(
-      {
-        message: "Unauthorized",
-      },
-      {
-        status: 401,
-      }
-    );
+  if (response instanceof NextResponse) {
+    return response;
   }
 
-  const response = await fetch(
-    `${API_URL}/categories`,
-    {
-      cache: "no-store",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+  try {
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch {
+    return NextResponse.json(
+      { message: "Failed to parse response" },
+      { status: response.status || 500 }
+    );
+  }
+}
 
-  const data = await response.json();
+export async function POST(request: Request) {
+  const body = await request.json();
 
-  return NextResponse.json(data, {
-    status: response.status,
+  const response = await authenticatedFetch("/categories", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
+
+  if (response instanceof NextResponse) {
+    return response;
+  }
+
+  try {
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
+  } catch {
+    return NextResponse.json(
+      { message: "Failed to parse response" },
+      { status: response.status || 500 }
+    );
+  }
 }

@@ -3,10 +3,9 @@ import { redirect } from "next/navigation";
 
 import { TransactionsClient } from "./transactions-client";
 
-const API_URL = "http://localhost:4000";
-
 type Transaction = {
   id: string;
+  accountId: string;
   categoryName: string;
   description: string | null;
   amount: string;
@@ -14,36 +13,29 @@ type Transaction = {
   transactionDate: string;
 };
 
-async function getTransactions(): Promise<
-  Transaction[]
-> {
+async function getTransactions(): Promise<Transaction[]> {
   const cookieStore = await cookies();
-
-  const token =
-    cookieStore.get("wealthly_token")?.value;
+  const token = cookieStore.get("wealthly_token")?.value;
 
   if (!token) {
     redirect("/login");
   }
 
-  const response = await fetch(
-    `${API_URL}/transactions`,
-    {
-      cache: "no-store",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  const response = await fetch(`${baseUrl}/api/transactions`, {
+    cache: "no-store",
+    headers: {
+      Cookie: `wealthly_token=${token}`,
+    },
+  });
 
   if (response.status === 401) {
     redirect("/login");
   }
 
   if (!response.ok) {
-    throw new Error(
-      "Failed to load transactions"
-    );
+    throw new Error("Failed to load transactions");
   }
 
   return response.json();

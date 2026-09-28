@@ -2,68 +2,92 @@
 
 ## Objective
 
-Implement and debug authentication without weakening security.
+Protect identity and user-owned data without weakening security.
 
-## Expected flow
+Authentication answers who the user is. Authorization answers what that user may access.
 
-Login:
+## Intended Wealthly flow
+
 Browser
--> POST /api/auth/login
--> Next.js calls Fastify /auth/login
--> Fastify verifies password
--> Fastify returns user + JWT
--> Next sets httpOnly `wealthly_token`
--> browser receives user data, not a JS-readable JWT
+-> Next.js
+-> authenticated Next.js API proxy
+-> Fastify
+-> Drizzle
+-> PostgreSQL
 
-Authenticated data:
-Browser
--> /api/<resource>
--> Next reads wealthly_token
--> Next forwards Authorization Bearer token
--> Fastify jwtVerify()
--> request.user.id
--> database query scoped to user
+Fastify creates the JWT.
 
-Logout:
-Browser
--> POST /api/auth/logout
--> Next clears wealthly_token
--> redirect/login
+Next login/register routes set `wealthly_token` as an httpOnly cookie.
 
-## Never do
+Next API proxy routes read the cookie and forward:
 
-- Do not make protected Fastify routes public.
-- Do not trust a browser-supplied userId.
-- Do not store passwords.
-- Do not put JWT secrets in frontend code.
-- Do not expose httpOnly cookie value to JavaScript.
-- Do not add localStorage auth as a second source of truth.
+`Authorization: Bearer <token>`
 
-## Debugging a 401
+Protected Fastify routes use the authenticated identity:
 
-Inspect the request at each boundary.
-
-Next proxy should have:
-`const token = cookieStore.get("wealthly_token")?.value`
-
-Fastify request should have:
-`Authorization: Bearer ${token}`
-
-Fastify should use:
-`await request.jwtVerify()`
-
-Database query should use:
 `request.user.id`
 
-If any boundary fails, fix that boundary instead of bypassing auth.
+## Non-negotiable rules
 
-## User isolation
+Never:
 
-Every resource query must be scoped:
-`where userId = authenticatedUserId`
+- make protected routes public to bypass a 401
+- accept browser-supplied `userId` as authorization
+- expose JWT secrets or passwords to the browser
+- return the JWT to browser JavaScript when httpOnly cookies are the intended architecture
+- add localStorage/sessionStorage auth as a workaround
+- log passwords, tokens, or provider secrets
+- return another user's resource because the resource ID exists
 
-For resource-by-ID requests, verify both:
-- resource ID
-- authenticated user ID
+## Authorization
 
-Never return another user's record just because the record ID exists.
+For every user-owned resource:
+
+- derive ownership from the verified token
+- scope reads by authenticated user
+- scope creates to authenticated user
+- verify ownership before update/delete
+- verify related resources also belong to the same user
+
+## 401 debugging
+
+Trace the complete boundary:
+
+1. Browser is authenticated.
+2. `wealthly_token` exists.
+3. Next route receives the cookie.
+4. Next extracts the token.
+5. Next forwards `Authorization: Bearer ...`.
+6. Fastify verifies the JWT.
+7. `request.user.id` exists.
+8. Database query uses that ID.
+9. Browser is calling the intended Next route.
+
+Fix the failing boundary. Do not bypass it.
+
+## Security tests
+
+For protected resources test:
+
+- unauthenticated -> 401
+- valid authenticated request -> success
+- user A -> own resource succeeds
+- user A -> user B resource rejected/not found per API contract
+- user A cannot update/delete user B data
+- forged `userId` does not change authorization
+- invalid/expired token is rejected where applicable
+
+## Auth architecture changes
+
+Stop for human review before:
+
+- changing JWT strategy
+- changing cookie security behavior
+- adding another auth source
+- introducing an identity provider
+- exposing protected Fastify routes
+- changing ownership semantics
+
+## Completion
+
+Authentication work is complete only when the intended flow works, protected routes remain protected, user isolation is tested, and no duplicate auth mechanism was introduced.

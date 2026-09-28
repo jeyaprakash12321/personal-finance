@@ -5,6 +5,7 @@ import {
   goals,
   transactions,
   eq,
+  and,
   sql,
 } from "@personal-finance/db";
 
@@ -21,113 +22,55 @@ export default async function dashboardRoutes(
     async (request: any) => {
       const userId = request.user.id;
 
-      const userAccounts = await db
-        .select()
-        .from(accounts)
-        .where(eq(accounts.userId, userId));
+      const [userAccounts, transactionSummary, accountSummaries, goalSummary, contributionSummary] = await Promise.all([
+        db
+          .select()
+          .from(accounts)
+          .where(and(eq(accounts.userId, userId), eq(accounts.isActive, true))),
+        db
+          .select({
+            income: sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else 0 end), 0)`,
+            expenses: sql<string>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.amount} else 0 end), 0)`,
+            count: sql<string>`count(*)`,
+          })
+          .from(transactions)
+          .where(eq(transactions.userId, userId)),
+        db
+          .select({
+            accountId: transactions.accountId,
+            income: sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else 0 end), 0)`,
+            expenses: sql<string>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.amount} else 0 end), 0)`,
+          })
+          .from(transactions)
+          .where(eq(transactions.userId, userId))
+          .groupBy(transactions.accountId),
+        db
+          .select({
+            count: sql<string>`count(*)`,
+            totalTarget: sql<string>`coalesce(sum(${goals.targetAmount}), 0)`,
+          })
+          .from(goals)
+          .where(eq(goals.userId, userId)),
+        db
+          .select({
+            totalSaved: sql<string>`coalesce(sum(${goalContributions.amount}), 0)`,
+          })
+          .from(goalContributions)
+          .where(eq(goalContributions.userId, userId)),
+      ]);
 
-      const userTransactions = await db
-        .select()
-        .from(transactions)
-        .where(
-          eq(transactions.userId, userId)
-        );
+      const accountTotals = new Map(accountSummaries.map((summary) => [summary.accountId, summary]));
+      const totalBalance = userAccounts.reduce((total, account) => {
+        const summary = accountTotals.get(account.id);
+        return total + Number(account.initialBalance) + Number(summary?.income ?? 0) - Number(summary?.expenses ?? 0);
+      }, 0);
 
-      const userGoals = await db
-        .select()
-        .from(goals)
-        .where(eq(goals.userId, userId));
-
-      const userContributions = await db
-        .select()
-        .from(goalContributions)
-        .where(
-          eq(
-            goalContributions.userId,
-            userId
-          )
-        );
-
-      const totalBalance =
-        userAccounts.reduce(
-          (total, account) => {
-            const accountTransactions =
-              userTransactions.filter(
-                (transaction) =>
-                  transaction.accountId ===
-                  account.id
-              );
-
-            const transactionTotal =
-              accountTransactions.reduce(
-                (
-                  accountTotal,
-                  transaction
-                ) => {
-                  const amount = Number(
-                    transaction.amount
-                  );
-
-                  return transaction.type ===
-                    "income"
-                    ? accountTotal + amount
-                    : accountTotal - amount;
-                },
-                0
-              );
-
-            return (
-              total +
-              Number(
-                account.initialBalance
-              ) +
-              transactionTotal
-            );
-          },
-          0
-        );
-
-      const income =
-        userTransactions
-          .filter(
-            (transaction) =>
-              transaction.type === "income"
-          )
-          .reduce(
-            (total, transaction) =>
-              total +
-              Number(transaction.amount),
-            0
-          );
-
-      const expenses =
-        userTransactions
-          .filter(
-            (transaction) =>
-              transaction.type === "expense"
-          )
-          .reduce(
-            (total, transaction) =>
-              total +
-              Number(transaction.amount),
-            0
-          );
-
-      const totalGoalTarget =
-        userGoals.reduce(
-          (total, goal) =>
-            total +
-            Number(goal.targetAmount),
-          0
-        );
-
-      const totalGoalSaved =
-        userContributions.reduce(
-          (total, contribution) =>
-            total +
-            Number(contribution.amount),
-          0
-        );
+      const income = Number(transactionSummary[0]?.income ?? 0);
+      const expenses = Number(transactionSummary[0]?.expenses ?? 0);
+      const transactionCount = Number(transactionSummary[0]?.count ?? 0);
+      const totalGoalTarget = Number(goalSummary[0]?.totalTarget ?? 0);
+      const totalGoalSaved = Number(contributionSummary[0]?.totalSaved ?? 0);
+      const goalCount = Number(goalSummary[0]?.count ?? 0);
 
       const goalProgress =
         totalGoalTarget > 0
@@ -149,7 +92,7 @@ export default async function dashboardRoutes(
           income,
           expenses,
           net: income - expenses,
-          count: userTransactions.length,
+          count: transactionCount,
         },
 
         goals: {
@@ -162,7 +105,7 @@ export default async function dashboardRoutes(
           ),
           progressPercentage:
             goalProgress,
-          count: userGoals.length,
+          count: goalCount,
         },
       };
     }

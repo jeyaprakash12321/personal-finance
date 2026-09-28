@@ -1,8 +1,15 @@
 # Skill: Transactions and Categories
 
-## Product behavior
+## Objective
 
-A transaction should contain, as appropriate:
+Maintain correct, user-scoped financial transaction/category behavior without corrupting historical data.
+
+## Transaction rules
+
+Use the actual Drizzle schema as authoritative for field names and relationships.
+
+Typical transaction concepts include:
+
 - account
 - category
 - amount
@@ -10,51 +17,83 @@ A transaction should contain, as appropriate:
 - description
 - transaction date
 
-Types:
-- income
-- expense
+Types currently include income and expense.
 
-## Categories
+## Category rules
 
-Categories must belong to users.
+Categories are user-owned.
 
-Support:
-- list categories
-- create category
-- update category
-- delete category safely
+Support as required:
 
-Category type should match transaction type.
+- list
+- create
+- update
+- safe delete
 
-An expense should not accidentally select an income-only category.
+Category type must be compatible with transaction type.
 
-## Delete behavior
+## Ownership
 
-Before deleting a category, determine whether transactions or budgets reference it.
+For every transaction/category operation:
 
-Do not silently corrupt historical financial data.
+1. derive user identity from authenticated token
+2. verify account/category ownership
+3. verify ownership before update/delete
+4. prevent cross-user access
 
-Prefer:
-- soft deletion, or
-- prevent deletion and explain why, or
-- a safe replacement-category flow
+Never use browser `userId` as authorization.
 
-based on the existing schema.
+## Financial integrity
 
-## UI
+Persistent money must use the project's appropriate numeric/decimal representation.
 
-Transaction form should have:
-- Type selector
-- Category selector
-- Account selector
-- Amount
-- Date
-- Description
+Do not use floating-point persistence for money.
 
-Category management should be accessible from an appropriate settings/categories area or the transaction flow.
+Test:
 
-## API security
+- whole amounts
+- decimals
+- zero
+- invalid negatives where prohibited
+- large values
+- precision/rounding
+- income/expense semantics
+- date boundaries
 
-All category and transaction endpoints must use authenticated user ID.
+## Safe category deletion
 
-Never accept `userId` as authorization input from the browser.
+Before deleting a category, inspect references from transactions/budgets.
+
+Use the existing data model to choose among:
+
+- safe deletion
+- soft deletion
+- replacement category
+- preventing deletion
+
+Do not invent a destructive strategy.
+
+## Required tests
+
+Transactions:
+
+- create income
+- create expense
+- list own
+- update own
+- delete own where supported
+- invalid amount/date/account/category
+- category/type mismatch
+- cross-user access
+
+Categories:
+
+- list/create/update
+- safe deletion
+- referenced category
+- cross-user access
+- type compatibility
+
+## Completion
+
+Financial work is complete only when ownership, consistency, historical safety, and relevant tests are verified.

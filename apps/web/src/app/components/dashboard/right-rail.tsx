@@ -1,20 +1,15 @@
 "use client";
 
 import {
-  ArrowRight,
-  ChevronLeft,
   ChevronRight,
   CirclePlus,
+  CalendarClock,
   FilePlus2,
   Goal,
   Receipt,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-
-type Transaction = {
-  transactionDate: string;
-};
 
 type Account = {
   id: string;
@@ -28,11 +23,9 @@ type Category = {
   type: "income" | "expense";
 };
 
-type TransactionType = "income" | "expense";
+type LinkedFinancialItem = { id: string; label: string };
 
-type RightRailProps = {
-  transactions?: Transaction[];
-};
+type TransactionType = "income" | "expense";
 
 function startOfDay(date: Date) {
   return new Date(
@@ -50,81 +43,23 @@ function dateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function getCalendarDays(monthDate: Date) {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
+type RecurringPreview = {
+  id: string;
+  title: string;
+  amount: string;
+  type: "income" | "expense";
+  nextDate: string;
+};
 
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-
-  // Convert Sunday = 0 into Monday = 0.
-  const firstWeekday = (firstDay.getDay() + 6) % 7;
-
-  const daysInMonth = lastDay.getDate();
-
-  const previousMonthLastDay = new Date(
-    year,
-    month,
-    0
-  ).getDate();
-
-  const days: {
-    date: Date;
-    currentMonth: boolean;
-  }[] = [];
-
-  // Previous month's trailing days
-  for (let i = firstWeekday - 1; i >= 0; i--) {
-    days.push({
-      date: new Date(
-        year,
-        month - 1,
-        previousMonthLastDay - i
-      ),
-      currentMonth: false,
-    });
-  }
-
-  // Current month
-  for (let day = 1; day <= daysInMonth; day++) {
-    days.push({
-      date: new Date(year, month, day),
-      currentMonth: true,
-    });
-  }
-
-  // Next month's leading days
-  let nextDay = 1;
-
-  while (days.length % 7 !== 0) {
-    days.push({
-      date: new Date(year, month + 1, nextDay),
-      currentMonth: false,
-    });
-
-    nextDay++;
-  }
-
-  return days;
-}
-
-export function RightRail({
-  transactions = [],
-}: RightRailProps) {
+export function RightRail() {
   const router = useRouter();
 
   const today = startOfDay(new Date());
-
-  const [currentMonth, setCurrentMonth] = useState(
-    new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      1
-    )
-  );
+  const todayTimestamp = today.getTime();
 
   const [selectedDate, setSelectedDate] =
     useState(today);
+  const [recurringItems, setRecurringItems] = useState<RecurringPreview[]>([]);
 
   // Transaction modal
   const [showTransactionModal, setShowTransactionModal] =
@@ -132,6 +67,13 @@ export function RightRail({
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [linkedItems, setLinkedItems] = useState({
+    credit_card: [] as LinkedFinancialItem[],
+    loan: [] as LinkedFinancialItem[],
+    insurance: [] as LinkedFinancialItem[],
+  });
+  const [linkedType, setLinkedType] = useState<"" | "credit_card" | "loan" | "insurance">("");
+  const [linkedId, setLinkedId] = useState("");
 
   const [transactionType, setTransactionType] =
     useState<TransactionType>("expense");
@@ -165,70 +107,23 @@ export function RightRail({
   const [savingGoal, setSavingGoal] = useState(false);
   const [goalError, setGoalError] = useState("");
 
-  const calendarDays = useMemo(
-    () => getCalendarDays(currentMonth),
-    [currentMonth]
-  );
-
-  const transactionDates = useMemo(() => {
-    return new Set(
-      transactions.map((transaction) =>
-        dateKey(new Date(transaction.transactionDate))
-      )
-    );
-  }, [transactions]);
-
-  const monthLabel = new Intl.DateTimeFormat("en-IN", {
-    month: "long",
-    year: "numeric",
-  }).format(currentMonth);
-
   const availableCategories = categories.filter(
     (category) => category.type === transactionType
   );
 
-  const goToPreviousMonth = () => {
-    setCurrentMonth(
-      (current) =>
-        new Date(
-          current.getFullYear(),
-          current.getMonth() - 1,
-          1
-        )
-    );
-  };
-
-  const goToNextMonth = () => {
-    setCurrentMonth(
-      (current) =>
-        new Date(
-          current.getFullYear(),
-          current.getMonth() + 1,
-          1
-        )
-    );
-  };
-
-  const goToToday = () => {
-    setCurrentMonth(
-      new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        1
-      )
-    );
-
-    setSelectedDate(today);
-  };
-
-  const isToday = (date: Date) =>
-    dateKey(date) === dateKey(today);
-
-  const isSelected = (date: Date) =>
-    dateKey(date) === dateKey(selectedDate);
-
-  const hasTransaction = (date: Date) =>
-    transactionDates.has(dateKey(date));
+  useEffect(() => {
+    fetch("/api/recurring")
+      .then((response) => response.ok ? response.json() : [])
+      .then((items: RecurringPreview[]) => {
+        setRecurringItems(
+          items
+            .filter((item) => new Date(item.nextDate).getTime() >= todayTimestamp)
+            .sort((a, b) => new Date(a.nextDate).getTime() - new Date(b.nextDate).getTime())
+            .slice(0, 3)
+        );
+      })
+      .catch(() => setRecurringItems([]));
+  }, [todayTimestamp]);
 
   // --------------------------------------------------
   // TRANSACTION
@@ -251,9 +146,15 @@ export function RightRail({
       const [
         accountsResponse,
         categoriesResponse,
+        cardsResponse,
+        loansResponse,
+        insuranceResponse,
       ] = await Promise.all([
-        fetch("http://localhost:4000/accounts"),
-        fetch("http://localhost:4000/categories"),
+        fetch("/api/accounts"),
+        fetch("/api/categories"),
+        fetch("/api/credit-cards"),
+        fetch("/api/loans"),
+        fetch("/api/insurance"),
       ]);
 
       if (!accountsResponse.ok) {
@@ -269,9 +170,17 @@ export function RightRail({
 
       const categoriesData =
         await categoriesResponse.json();
+      const cardsData = cardsResponse.ok ? await cardsResponse.json() : [];
+      const loansData = loansResponse.ok ? await loansResponse.json() : [];
+      const insuranceData = insuranceResponse.ok ? await insuranceResponse.json() : [];
 
       setAccounts(accountsData);
       setCategories(categoriesData);
+      setLinkedItems({
+        credit_card: cardsData.map((item: { id: string; cardName: string; last4: string }) => ({ id: item.id, label: `${item.cardName} ····${item.last4}` })),
+        loan: loansData.map((item: { id: string; lender: string }) => ({ id: item.id, label: item.lender })),
+        insurance: insuranceData.map((item: { id: string; provider: string; policyNumber: string }) => ({ id: item.id, label: `${item.provider} · ${item.policyNumber}` })),
+      });
 
       if (accountsData.length > 0) {
         setAccountId((current) =>
@@ -351,6 +260,11 @@ export function RightRail({
       return;
     }
 
+    if (linkedType && !linkedId) {
+      setTransactionError("Please select the related financial item.");
+      return;
+    }
+
     setSavingTransaction(true);
 
     try {
@@ -368,7 +282,7 @@ export function RightRail({
       );
 
       const response = await fetch(
-        "http://localhost:4000/transactions",
+        "/api/transactions",
         {
           method: "POST",
           headers: {
@@ -383,6 +297,8 @@ export function RightRail({
               description.trim() || undefined,
             transactionDate:
               transactionDate.toISOString(),
+            linkedType: linkedType || null,
+            linkedId: linkedId || null,
           }),
         }
       );
@@ -401,6 +317,8 @@ export function RightRail({
       setAmount("");
       setDescription("");
       setTransactionType("expense");
+      setLinkedType("");
+      setLinkedId("");
 
       const firstExpenseCategory =
         categories.find(
@@ -484,7 +402,7 @@ export function RightRail({
 
     try {
       const response = await fetch(
-        "http://localhost:4000/goals",
+        "/api/goals",
         {
           method: "POST",
           headers: {
@@ -541,165 +459,10 @@ export function RightRail({
 
   return (
     <aside className="w-full space-y-4">
-      {/* Quote card */}
-      <div className="relative h-[232px] overflow-hidden rounded-2xl bg-gradient-to-br from-[#466a6d] via-[#5f7b7c] to-[#263f40] p-6 text-white shadow-[0_10px_30px_rgba(16,35,28,0.08)]">
-        <div className="absolute -right-8 bottom-[-25px] text-[110px] opacity-20">
-          🌿
-        </div>
-
-        <div className="relative z-10">
-          <p className="max-w-[205px] pt-5 text-[18px] font-medium leading-7 tracking-[-0.02em]">
-            Discipline today,
-            <br />
-            freedom tomorrow.
-          </p>
-
-          <div className="mt-6 h-px w-20 bg-white/50" />
-        </div>
-      </div>
-
-      {/* Calendar */}
-      <div className="rounded-2xl border border-[#e5ece8] bg-white p-5 shadow-[0_8px_30px_rgba(16,35,28,0.04)]">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-[16px] font-bold tracking-[-0.02em] text-[#10231c]">
-              {monthLabel}
-            </h2>
-
-            <button
-              type="button"
-              onClick={goToToday}
-              className="mt-1 text-[11px] font-medium text-[#078653] hover:text-[#056b43]"
-            >
-              Today
-            </button>
-          </div>
-
-          <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={goToPreviousMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#edf1ef] text-[#60736b] transition hover:bg-[#f5f9f7]"
-              aria-label="Previous month"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-
-            <button
-              type="button"
-              onClick={goToNextMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#edf1ef] text-[#60736b] transition hover:bg-[#f5f9f7]"
-              aria-label="Next month"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Weekdays */}
-        <div className="mt-5 grid grid-cols-7">
-          {[
-            "Mon",
-            "Tue",
-            "Wed",
-            "Thu",
-            "Fri",
-            "Sat",
-            "Sun",
-          ].map((day) => (
-            <span
-              key={day}
-              className="text-center text-[10px] font-semibold uppercase tracking-wide text-[#9aa8a2]"
-            >
-              {day.slice(0, 1)}
-            </span>
-          ))}
-        </div>
-
-        {/* Calendar days */}
-        <div className="mt-3 grid grid-cols-7 gap-y-1">
-          {calendarDays.map(
-            ({
-              date,
-              currentMonth: isCurrentMonth,
-            }) => {
-              const todayDate = isToday(date);
-              const selected = isSelected(date);
-              const transaction =
-                hasTransaction(date);
-
-              return (
-                <button
-                  key={dateKey(date)}
-                  type="button"
-                  onClick={() =>
-                    setSelectedDate(date)
-                  }
-                  className="group relative flex h-9 items-center justify-center"
-                  aria-label={new Intl.DateTimeFormat(
-                    "en-IN",
-                    {
-                      dateStyle: "full",
-                    }
-                  ).format(date)}
-                >
-                  <span
-                    className={`
-                      flex h-8 w-8 items-center justify-center rounded-full
-                      text-[11px] transition-all
-                      ${
-                        selected
-                          ? "bg-[#087d50] font-semibold text-white shadow-sm"
-                          : todayDate
-                            ? "border border-[#16a36a] font-semibold text-[#078653]"
-                            : isCurrentMonth
-                              ? "text-[#50665c] hover:bg-[#edf8f2]"
-                              : "text-[#c5cec9]"
-                      }
-                    `}
-                  >
-                    {date.getDate()}
-                  </span>
-
-                  {transaction && (
-                    <span
-                      className={`
-                        absolute bottom-0.5 h-1 w-1 rounded-full
-                        ${
-                          selected
-                            ? "bg-white"
-                            : "bg-[#16a36a]"
-                        }
-                      `}
-                    />
-                  )}
-                </button>
-              );
-            }
-          )}
-        </div>
-
-        {/* Selected date */}
-        <div className="mt-4 border-t border-[#edf1ef] pt-3">
-          <p className="text-[11px] text-[#91a09a]">
-            Selected date
-          </p>
-
-          <p className="mt-1 text-[12px] font-semibold text-[#30463d]">
-            {new Intl.DateTimeFormat("en-IN", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            }).format(selectedDate)}
-          </p>
-        </div>
-      </div>
-
       {/* Quick add */}
-      <div className="rounded-2xl border border-[#e5ece8] bg-white p-5 shadow-[0_8px_30px_rgba(16,35,28,0.04)]">
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--card-bg)] p-5 shadow-[var(--shadow-sm)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-[17px] font-bold tracking-[-0.03em] text-[#10231c]">
+          <h2 className="text-[17px] font-bold tracking-[-0.03em] text-[var(--text-primary)]">
             Quick Add
           </h2>
 
@@ -724,30 +487,29 @@ export function RightRail({
           <QuickAction
             icon={<FilePlus2 className="h-4 w-4" />}
             label="Create a Budget"
+            onClick={() => router.push("/budgets")}
           />
         </div>
       </div>
 
-      {/* Upgrade card */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#e4f8ec] to-[#f1fbf5] p-5">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#ffe9a8] text-lg">
-            👑
+      {/* Upcoming recurring items */}
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--card-bg)] p-5 shadow-[var(--shadow-sm)]">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-[17px] font-bold tracking-[-0.03em] text-[var(--text-primary)]">Upcoming</h2>
+            <p className="mt-1 text-[11px] text-[var(--text-muted)]">Scheduled money movement</p>
           </div>
-
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-[#10231c]">
-              Upgrade to Pro
-            </p>
-
-            <p className="mt-1 text-[11px] leading-5 text-[#60736b]">
-              Get advanced insights, unlimited goals and
-              more.
-            </p>
-          </div>
-
-          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-[#10231c]" />
+          <CalendarClock className="h-5 w-5 text-[var(--accent)]" />
         </div>
+        <div className="mt-4 space-y-2">
+          {recurringItems.length > 0 ? recurringItems.map((item) => (
+            <button key={item.id} type="button" onClick={() => router.push("/recurring")} className="flex w-full items-center justify-between rounded-xl bg-[var(--surface-subtle)] px-3 py-3 text-left transition hover:bg-[var(--accent-soft)]">
+              <span className="min-w-0"><span className="block truncate text-xs font-semibold text-[var(--text-primary)]">{item.title}</span><span className="mt-1 block text-[11px] text-[var(--text-muted)]">{new Date(item.nextDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span></span>
+              <span className={`ml-3 shrink-0 text-xs font-semibold ${item.type === "income" ? "text-[var(--accent)]" : "text-[var(--danger)]"}`}>{item.type === "income" ? "+" : "−"}₹{Number(item.amount).toLocaleString("en-IN")}</span>
+            </button>
+          )) : <p className="rounded-xl bg-[var(--surface-subtle)] px-3 py-4 text-xs leading-5 text-[var(--text-muted)]">No upcoming recurring items. Add salary, rent, bills, or subscriptions to see them here.</p>}
+        </div>
+        <button type="button" onClick={() => router.push("/recurring")} className="mt-3 text-xs font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]">View recurring calendar <span aria-hidden="true">→</span></button>
       </div>
 
       {/* Add Transaction Modal */}
@@ -952,6 +714,35 @@ export function RightRail({
                     )
                   )}
                 </select>
+              </div>
+
+              {/* Related financial item */}
+              <div>
+                <label htmlFor="transaction-linked-type" className="text-xs font-medium text-[#30463d]">
+                  Related financial item <span className="text-[#91a09a]">(optional)</span>
+                </label>
+                <select
+                  id="transaction-linked-type"
+                  value={linkedType}
+                  onChange={(event) => { setLinkedType(event.target.value as typeof linkedType); setLinkedId(""); }}
+                  className="mt-1.5 w-full rounded-xl border border-[#dfe8e3] bg-white px-3 py-2.5 text-sm text-[#30463d] outline-none transition focus:border-[#16a36a] focus:ring-2 focus:ring-[#16a36a]/10"
+                >
+                  <option value="">None — regular account transaction</option>
+                  <option value="credit_card">Credit card payment or purchase</option>
+                  <option value="loan">Loan repayment</option>
+                  <option value="insurance">Insurance premium</option>
+                </select>
+                {linkedType && (
+                  <select
+                    value={linkedId}
+                    onChange={(event) => setLinkedId(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-[#dfe8e3] bg-white px-3 py-2.5 text-sm text-[#30463d] outline-none transition focus:border-[#16a36a] focus:ring-2 focus:ring-[#16a36a]/10"
+                    required
+                  >
+                    <option value="">Select {linkedType.replace("_", " ")}</option>
+                    {linkedItems[linkedType].map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  </select>
+                )}
               </div>
 
               {/* Date */}
@@ -1187,19 +978,19 @@ function QuickAction({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between rounded-xl bg-[#f7faf8] px-3 py-3 text-left transition hover:bg-[#edf8f2]"
+      className="flex w-full items-center justify-between rounded-xl bg-[var(--surface-subtle)] px-3 py-3 text-left transition hover:bg-[var(--accent-soft)]"
     >
       <span className="flex items-center gap-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e5f7ed] text-[#078653]">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent)]">
           {icon}
         </span>
 
-        <span className="text-[12px] font-medium text-[#30463d]">
+        <span className="text-[12px] font-medium text-[var(--text-primary)]">
           {label}
         </span>
       </span>
 
-      <ChevronRight className="h-4 w-4 text-[#91a09a]" />
+      <ChevronRight className="h-4 w-4 text-[var(--text-muted)]" />
     </button>
   );
 }

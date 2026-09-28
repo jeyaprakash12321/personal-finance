@@ -13,10 +13,12 @@ import {
 } from "lucide-react";
 import {
   FormEvent,
+  useCallback,
   useEffect,
   useMemo,
   useState,
 } from "react";
+import { useConfirmDialog } from "../../components/ui/dialog-provider";
 
 type Budget = {
   id: string;
@@ -82,6 +84,7 @@ const inputClass =
   "h-11 w-full rounded-xl border border-[#dfe8e3] bg-white px-3 text-sm text-[#10231c] outline-none transition placeholder:text-[#a7b2ad] focus:border-[#78c9a3] focus:ring-4 focus:ring-[#d9f7e9]";
 
 export default function BudgetsPage() {
+  const { confirm, notify } = useConfirmDialog();
   const [selectedMonth, setSelectedMonth] =
     useState(getCurrentMonth());
 
@@ -97,10 +100,88 @@ export default function BudgetsPage() {
   const [showCreateModal, setShowCreateModal] =
     useState(false);
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
 
-  async function loadBudgets() {
+  function openEditModal(budget: Budget) {
+    setEditingBudget(budget);
+    setEditAmount(budget.amount);
+    setFormError("");
+    setShowEditModal(true);
+  }
+
+  function closeEditModal() {
+    if (saving) return;
+    setShowEditModal(false);
+    setEditingBudget(null);
+    setFormError("");
+  }
+
+  async function handleUpdateBudget(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingBudget) return;
+
+    if (!/^\d+(\.\d{1,2})?$/.test(editAmount.trim()) || Number(editAmount) <= 0) {
+      setFormError("Enter a valid budget amount greater than zero.");
+      return;
+    }
+
+    setSaving(true);
+    setFormError("");
+
+    try {
+      const response = await fetch(`/api/budgets/${editingBudget.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: Number(editAmount).toFixed(2),
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to update budget");
+      }
+
+      setShowEditModal(false);
+      setEditingBudget(null);
+      await loadBudgets();
+    } catch (error) {
+      console.error(error);
+      setFormError(error instanceof Error ? error.message : "Unable to update budget.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteBudget(budget: Budget) {
+    if (!(await confirm({ title: "Delete budget?", description: `The budget for "${budget.categoryName}" will be permanently removed.`, confirmLabel: "Delete budget", destructive: true }))) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/budgets/${budget.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        notify(data?.message || "Failed to delete budget", "error");
+        return;
+      }
+
+      await loadBudgets();
+    } catch (error) {
+      console.error(error);
+      notify("Failed to delete budget.", "error");
+    }
+  }
+
+  const loadBudgets = useCallback(async () => {
     try {
       setLoading(true);
       setPageError("");
@@ -125,9 +206,9 @@ export default function BudgetsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [selectedMonth]);
 
-  async function loadCategories() {
+  const loadCategories = useCallback(async () => {
     try {
       const response = await fetch(
         "/api/categories",
@@ -151,15 +232,15 @@ export default function BudgetsPage() {
     } catch (error) {
       console.error(error);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void loadBudgets();
-  }, [selectedMonth]);
+  }, [loadBudgets]);
 
   useEffect(() => {
-    void loadCategories();
-  }, []);
+    queueMicrotask(() => void loadCategories());
+  }, [loadCategories]);
 
   const summary = useMemo(() => {
     const totalBudget = budgets.reduce(
@@ -505,6 +586,8 @@ export default function BudgetsPage() {
                 <BudgetCard
                   key={budget.id}
                   budget={budget}
+                  onEdit={() => openEditModal(budget)}
+                  onDelete={() => handleDeleteBudget(budget)}
                 />
               ))}
             </div>
@@ -635,6 +718,72 @@ export default function BudgetsPage() {
           </form>
         </Modal>
       )}
+
+      {showEditModal && editingBudget && (
+        <Modal onClose={closeEditModal}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d9f7e9] text-[#078653]">
+                <Target className="h-5 w-5" />
+              </div>
+
+              <h2 className="mt-4 text-xl font-bold tracking-[-0.03em] text-[#10231c]">
+                Edit budget
+              </h2>
+
+              <p className="mt-1 text-sm text-[#60736b]">
+                Update spending limit for {editingBudget.categoryName}.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={closeEditModal}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-[#91a09a] hover:bg-[#f1f8f4] hover:text-[#10231c]"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleUpdateBudget} className="mt-6 space-y-4">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-[#10231c]">
+                Monthly budget
+              </span>
+
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#91a09a]">
+                  ₹
+                </span>
+
+                <input
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  placeholder="10000"
+                  inputMode="decimal"
+                  className={`${inputClass} pl-8`}
+                  autoFocus
+                />
+              </div>
+            </label>
+
+            {formError && (
+              <p className="rounded-xl bg-[#fff3f3] px-3 py-2.5 text-xs font-medium text-[#c94a4d]">
+                {formError}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#078653] text-sm font-semibold text-white transition hover:bg-[#056b43] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {saving ? "Saving..." : "Save Budget"}
+            </button>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -669,8 +818,12 @@ function SummaryCard({
 
 function BudgetCard({
   budget,
+  onEdit,
+  onDelete,
 }: {
   budget: Budget;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const rawPercentage = Number(
     budget.percentageUsed,
@@ -779,6 +932,23 @@ function BudgetCard({
         <span className="font-semibold text-[#60736b]">
           {displayPercentage}%
         </span>
+      </div>
+
+      <div className="mt-4 flex items-center justify-end gap-2 border-t border-[#edf1ef] pt-3">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="rounded-lg border border-[#e4ebe7] px-3 py-1 text-xs font-semibold text-[#60736b] transition hover:bg-[#f7faf8] hover:text-[#10231c]"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="rounded-lg border border-[#ffd4d4] px-3 py-1 text-xs font-semibold text-[#c74448] transition hover:bg-[#fff5f5]"
+        >
+          Delete
+        </button>
       </div>
     </article>
   );

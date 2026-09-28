@@ -5,7 +5,6 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
-  CircleDollarSign,
   Lightbulb,
   Receipt,
   Sparkles,
@@ -59,7 +58,7 @@ export default function InsightsPage() {
     async function loadTransactions() {
       try {
         const response = await fetch(
-          "http://localhost:4000/transactions",
+          "/api/transactions",
           {
             cache: "no-store",
           }
@@ -350,7 +349,7 @@ export default function InsightsPage() {
             </div>
 
             <h2 className="mt-3 text-[23px] font-bold tracking-[-0.035em] text-[#10231c] sm:text-[28px]">
-              Here's what your money is telling you.
+              Here&apos;s what your money is telling you.
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-[#60736b]">

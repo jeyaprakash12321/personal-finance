@@ -1,43 +1,69 @@
 # Skill: Database and Drizzle
 
-## Rules
+## Objective
 
-Before changing schema:
-1. inspect packages/db/src/schema.ts
-2. inspect existing migrations
-3. understand foreign keys and constraints
-4. determine whether existing data can migrate safely
+Change the database safely and preserve existing financial data.
 
-Never edit production-like data just to make a test pass.
+## Before schema changes
+
+Inspect:
+
+- `packages/db/src/schema.ts`
+- existing migrations
+- foreign keys
+- indexes
+- unique constraints
+- nullability/defaults
+- application usage
+- package scripts
+- installed Drizzle Kit version
+
+Do not assume relationships from filenames.
 
 ## Migration workflow
 
-Use the project's installed Drizzle Kit version and inspect package scripts before running migration commands.
+1. inspect current schema
+2. inspect migration history
+3. design change
+4. identify existing-data impact
+5. use the project's established Drizzle workflow
+6. inspect generated migration
+7. test on a safe database
+8. verify application behavior
+9. review data-loss/rollback implications
 
-Do not assume CLI options from another Drizzle version.
+Never guess CLI flags from another Drizzle version.
 
-If migration history is unusual, inspect the migration table before modifying it.
+## Financial data
 
-## Data integrity
+Use numeric/decimal representations appropriate to the schema.
 
-Financial data must remain consistent.
+Do not silently round persisted financial values.
 
-Important relationships may include:
-- users -> accounts
-- users -> transactions
-- users -> categories
-- users -> goals
-- users -> budgets
-- goals -> goalContributions
-- accounts -> transactions
-- categories -> transactions/budgets
+Preserve historical transaction meaning.
 
-Inspect actual foreign keys before making assumptions.
+## Destructive changes
 
-## Money
+Human review is required for:
 
-Use database numeric/decimal types where appropriate.
+- dropping tables/columns
+- destructive type changes
+- new non-null constraints that existing rows may violate
+- foreign-key changes
+- deleting historical financial data
+- production data transformations
 
-Do not use floating-point arithmetic for persistent money values.
+## Migration tests
 
-Convert carefully at API/UI boundaries.
+Verify where applicable:
+
+- clean migration
+- representative existing data migration
+- constraints
+- foreign keys
+- unique constraints
+- invalid data rejection
+- transactional/rollback behavior
+- application CRUD after migration
+
+Do not rely on TypeScript compilation to prove schema correctness.

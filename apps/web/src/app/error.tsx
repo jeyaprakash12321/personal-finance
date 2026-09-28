@@ -14,12 +14,12 @@ export default function ErrorPage({
           <span className="text-lg font-bold">!</span>
         </div>
 
-        <h1 className="mt-5 text-xl font-bold text-slate-900">
+        <h1 className="mt-5 text-xl font-bold text-[var(--text-primary)]">
           Something went wrong
         </h1>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          We couldn't load your financial dashboard.
+          We couldn&apos;t load your financial dashboard.
           Check that the API is running and try again.
         </p>
 

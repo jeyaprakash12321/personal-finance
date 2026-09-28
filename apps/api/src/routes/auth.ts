@@ -1,7 +1,7 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { hashPassword, verifyPassword } from "../lib/auth.js";
 
-import { db, eq, users } from "@personal-finance/db";
+import { db, eq, users, accounts, categories } from "@personal-finance/db";
 
 const registerSchema = z.object({
   name: z.string().min(1).max(100),
@@ -13,46 +13,6 @@ const loginSchema = z.object({
   email: z.string().email().max(255),
   password: z.string().min(1).max(100),
 });
-
-function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-
-  const hash = scryptSync(
-    password,
-    salt,
-    64
-  ).toString("hex");
-
-  return `${salt}:${hash}`;
-}
-
-function verifyPassword(
-  password: string,
-  storedHash: string
-) {
-  const [salt, key] = storedHash.split(":");
-
-  if (!salt || !key) {
-    return false;
-  }
-
-  const derivedKey = scryptSync(
-    password,
-    salt,
-    64
-  );
-
-  const storedKey = Buffer.from(key, "hex");
-
-  if (derivedKey.length !== storedKey.length) {
-    return false;
-  }
-
-  return timingSafeEqual(
-    derivedKey,
-    storedKey
-  );
-}
 
 export default async function authRoutes(app: any) {
   app.post(
@@ -79,19 +39,52 @@ export default async function authRoutes(app: any) {
         body.password
       );
 
-      const [user] = await db
-        .insert(users)
-        .values({
-          name: body.name.trim(),
-          email,
-          passwordHash,
-        })
-        .returning({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          createdAt: users.createdAt,
+      const defaultCategories = [
+        { name: "Food & Dining", type: "expense" },
+        { name: "Bills & Utilities", type: "expense" },
+        { name: "Shopping", type: "expense" },
+        { name: "Transportation", type: "expense" },
+        { name: "Entertainment", type: "expense" },
+        { name: "Salary", type: "income" },
+        { name: "Freelance", type: "income" },
+        { name: "Investments", type: "income" },
+      ] as const;
+
+      // User creation and first-run data must succeed or fail together.
+      const user = await db.transaction(async (tx) => {
+        const [createdUser] = await tx
+          .insert(users)
+          .values({
+            name: body.name.trim(),
+            email,
+            passwordHash,
+          })
+          .returning({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            createdAt: users.createdAt,
+          });
+
+        await tx.insert(accounts).values({
+          userId: createdUser.id,
+          name: "Primary Checking Account",
+          type: "checking",
+          initialBalance: "0",
+          currency: "INR",
+          isActive: true,
         });
+
+        await tx.insert(categories).values(
+          defaultCategories.map((category) => ({
+            userId: createdUser.id,
+            name: category.name,
+            type: category.type,
+          })),
+        );
+
+        return createdUser;
+      });
 
       const token = await app.jwt.sign({
         id: user.id,
@@ -136,7 +129,7 @@ export default async function authRoutes(app: any) {
         email: user.email,
       });
 
-      return {
+      return reply.code(200).send({
         user: {
           id: user.id,
           name: user.name,
@@ -144,7 +137,7 @@ export default async function authRoutes(app: any) {
           createdAt: user.createdAt,
         },
         token,
-      };
+      });
     }
   );
 
@@ -173,6 +166,15 @@ export default async function authRoutes(app: any) {
       }
 
       return user;
+    }
+  );
+
+  app.post(
+    "/auth/logout",
+    async (request: any, reply: any) => {
+      return reply.code(200).send({
+        message: "Logged out successfully",
+      });
     }
   );
 }

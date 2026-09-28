@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type Transaction = {
   id: string;
   amount: string;
@@ -23,34 +25,44 @@ export function RecentTransactions({
 }: {
   transactions: Transaction[];
 }) {
-  const recentTransactions = transactions.slice(0, 5);
+  const recentTransactions = [...transactions]
+    .sort(
+      (left, right) =>
+        new Date(right.transactionDate).getTime() -
+        new Date(left.transactionDate).getTime(),
+    )
+    .slice(0, 5);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-sm)] sm:p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             Recent Transactions
           </h2>
 
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
             Your latest financial activity
           </p>
         </div>
 
-        <button className="text-sm font-medium text-emerald-600 hover:text-emerald-700">
+        <Link
+          href="/transactions"
+          className="text-sm font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]"
+        >
           View all
-        </button>
+        </Link>
       </div>
 
-      <div className="mt-6 divide-y divide-slate-100">
+      <div className="mt-6 divide-y divide-[var(--border)]">
         {recentTransactions.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">
+          <p className="py-8 text-center text-sm text-[var(--text-muted)]">
             No transactions yet
           </p>
         ) : (
           recentTransactions.map((transaction) => {
-            const isIncome = transaction.type === "income";
+            const isIncome =
+              transaction.type === "income";
 
             return (
               <div
@@ -61,20 +73,20 @@ export function RecentTransactions({
                   <div
                     className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold ${
                       isIncome
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "bg-orange-50 text-orange-600"
+                        ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                        : "bg-[var(--danger-soft)] text-[var(--danger)]"
                     }`}
                   >
                     {isIncome ? "+" : "−"}
                   </div>
 
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-900">
+                    <p className="truncate text-sm font-medium text-[var(--text-primary)]">
                       {transaction.description ||
                         transaction.categoryName}
                     </p>
 
-                    <p className="mt-1 text-xs text-slate-400">
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">
                       {transaction.categoryName} ·{" "}
                       {formatDate(
                         transaction.transactionDate
@@ -86,8 +98,8 @@ export function RecentTransactions({
                 <p
                   className={`ml-4 shrink-0 text-sm font-semibold ${
                     isIncome
-                      ? "text-emerald-600"
-                      : "text-slate-900"
+                      ? "text-[var(--accent)]"
+                      : "text-[var(--text-primary)]"
                   }`}
                 >
                   {isIncome ? "+" : "−"}

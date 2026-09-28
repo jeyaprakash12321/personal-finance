@@ -10,7 +10,8 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { useConfirmDialog } from "../../components/ui/dialog-provider";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type Account = {
   id: string;
@@ -110,6 +111,7 @@ function getAccountIcon(
 
 export default function AccountsPage() {
   const router = useRouter();
+  const { confirm, notify } = useConfirmDialog();
 
   const [accounts, setAccounts] = useState<
     Account[]
@@ -142,7 +144,106 @@ export default function AccountsPage() {
   const [initialBalance, setInitialBalance] =
     useState("");
 
-  async function loadData() {
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState<AccountType>("savings");
+  const [editCurrency, setEditCurrency] = useState("INR");
+  const [editInitialBalance, setEditInitialBalance] = useState("0");
+
+  function openEditModal(account: Account) {
+    setEditingAccount(account);
+    setEditName(account.name);
+    setEditType(account.type);
+    setEditCurrency(account.currency);
+    setEditInitialBalance(account.initialBalance);
+    setFormError("");
+    setShowEditModal(true);
+  }
+
+  function closeEditModal() {
+    if (saving) return;
+    setShowEditModal(false);
+    setEditingAccount(null);
+    setFormError("");
+  }
+
+  async function handleUpdateAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingAccount) return;
+
+    const trimmedName = editName.trim();
+    if (!trimmedName) {
+      setFormError("Please enter an account name.");
+      return;
+    }
+
+    setSaving(true);
+    setFormError("");
+
+    try {
+      const response = await fetch(`/api/accounts/${editingAccount.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          type: editType,
+          currency: editCurrency,
+          initialBalance: editInitialBalance.trim() || "0",
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to update account");
+      }
+
+      setShowEditModal(false);
+      setEditingAccount(null);
+      await loadData();
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setFormError(error instanceof Error ? error.message : "Failed to update account.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeactivateAccount(account: Account) {
+    if (!(await confirm({ title: "Deactivate account?", description: `"${account.name}" will be archived and hidden from active accounts. Existing transactions will be preserved.`, confirmLabel: "Deactivate", destructive: true }))) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/accounts/${account.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.status === 401) {
+        router.push("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        notify(data?.message || "Failed to deactivate account", "error");
+        return;
+      }
+
+      await loadData();
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      notify("Failed to deactivate account.", "error");
+    }
+  }
+
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setFormError("");
@@ -195,11 +296,11 @@ export default function AccountsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [router]);
 
   useEffect(() => {
-    void loadData();
-  }, []);
+    queueMicrotask(() => void loadData());
+  }, [loadData]);
 
   const activeAccounts =
     accounts.filter(
@@ -556,9 +657,22 @@ export default function AccountsPage() {
                                 </div>
                               </div>
 
-                              <span className="rounded-full bg-[#edf8f2] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#078653]">
-                                Active
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal(account)}
+                                  className="rounded-lg border border-[#e4ebe7] px-2.5 py-1 text-xs font-semibold text-[#60736b] transition hover:bg-[#f7faf8] hover:text-[#10231c]"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeactivateAccount(account)}
+                                  className="rounded-lg border border-[#ffd4d4] px-2.5 py-1 text-xs font-semibold text-[#c74448] transition hover:bg-[#fff5f5]"
+                                >
+                                  Deactivate
+                                </button>
+                              </div>
                             </div>
 
                             {/* Balance */}
@@ -868,6 +982,129 @@ export default function AccountsPage() {
                     {saving
                       ? "Creating..."
                       : "Create Account"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Account Modal */}
+      {showEditModal && editingAccount && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#10231c]/30 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeEditModal();
+            }
+          }}
+        >
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-[#e4ebe7] bg-white shadow-[0_25px_70px_rgba(16,35,28,0.18)]">
+            <div className="flex items-start justify-between border-b border-[#edf1ef] p-5 sm:p-6">
+              <div>
+                <p className="text-sm font-medium text-[#16a36a]">Edit Account</p>
+                <h2 className="mt-1 text-xl font-bold tracking-[-0.03em] text-[#10231c]">
+                  Update {editingAccount.name}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                disabled={saving}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-[#91a09a] transition hover:bg-[#f1f8f4] hover:text-[#10231c] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateAccount} className="p-5 sm:p-6">
+              <div className="space-y-5">
+                <div>
+                  <label htmlFor="edit-account-name" className="text-xs font-semibold text-[#30463d]">
+                    Account name
+                  </label>
+                  <input
+                    id="edit-account-name"
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="mt-2 h-11 w-full rounded-xl border border-[#e4ebe7] bg-[#f8faf9] px-3.5 text-sm text-[#10231c] outline-none transition focus:border-[#9bd8bb] focus:bg-white focus:ring-4 focus:ring-[#d9f7e9]"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="edit-account-type" className="text-xs font-semibold text-[#30463d]">
+                    Account type
+                  </label>
+                  <select
+                    id="edit-account-type"
+                    value={editType}
+                    onChange={(e) => setEditType(e.target.value as AccountType)}
+                    className="mt-2 h-11 w-full rounded-xl border border-[#e4ebe7] bg-[#f8faf9] px-3.5 text-sm text-[#10231c] outline-none transition focus:border-[#9bd8bb] focus:bg-white focus:ring-4 focus:ring-[#d9f7e9]"
+                  >
+                    {accountTypes.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="edit-account-currency" className="text-xs font-semibold text-[#30463d]">
+                    Currency
+                  </label>
+                  <select
+                    id="edit-account-currency"
+                    value={editCurrency}
+                    onChange={(e) => setEditCurrency(e.target.value)}
+                    className="mt-2 h-11 w-full rounded-xl border border-[#e4ebe7] bg-[#f8faf9] px-3.5 text-sm text-[#10231c] outline-none transition focus:border-[#9bd8bb] focus:bg-white focus:ring-4 focus:ring-[#d9f7e9]"
+                  >
+                    <option value="INR">INR — Indian Rupee</option>
+                    <option value="USD">USD — US Dollar</option>
+                    <option value="EUR">EUR — Euro</option>
+                    <option value="GBP">GBP — British Pound</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="edit-account-balance" className="text-xs font-semibold text-[#30463d]">
+                    Starting balance
+                  </label>
+                  <input
+                    id="edit-account-balance"
+                    type="number"
+                    step="0.01"
+                    value={editInitialBalance}
+                    onChange={(e) => setEditInitialBalance(e.target.value)}
+                    className="mt-2 h-11 w-full rounded-xl border border-[#e4ebe7] bg-[#f8faf9] px-3.5 text-sm text-[#10231c] outline-none transition focus:border-[#9bd8bb] focus:bg-white focus:ring-4 focus:ring-[#d9f7e9]"
+                  />
+                  <p className="mt-1 text-xs text-[#71817a]">Transactions remain unchanged; this updates the account’s opening balance.</p>
+                </div>
+
+                {formError && (
+                  <div className="rounded-xl border border-[#ffd4d4] bg-[#fff5f5] px-3.5 py-3 text-sm text-[#c74448]">
+                    {formError}
+                  </div>
+                )}
+
+                <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    disabled={saving}
+                    className="h-11 rounded-xl border border-[#e4ebe7] bg-white px-5 text-sm font-semibold text-[#60736b] transition hover:bg-[#f7faf8] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#078653] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(7,134,83,0.18)] transition hover:bg-[#056b43] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {saving ? "Saving..." : "Save Changes"}
                   </button>
                 </div>
               </div>

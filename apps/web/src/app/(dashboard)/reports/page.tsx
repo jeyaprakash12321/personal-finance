@@ -87,20 +87,22 @@ export default function ReportsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [rangeOpen, setRangeOpen] = useState(false);
 
   useEffect(() => {
     async function loadReports() {
       try {
         setLoading(true);
+        setError("");
 
         const [transactionsResponse, cashFlowResponse] =
           await Promise.all([
-            fetch("http://localhost:4000/transactions", {
+            fetch("/api/transactions", {
               cache: "no-store",
             }),
             fetch(
-              `http://localhost:4000/dashboard/cash-flow?range=${range}`,
+              `/api/dashboard/cash-flow?range=${range}`,
               {
                 cache: "no-store",
               }
@@ -122,6 +124,7 @@ export default function ReportsPage() {
         setCashFlow(cashFlowData);
       } catch (error) {
         console.error("Failed to load reports:", error);
+        setError("We couldn't load this report. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -140,7 +143,7 @@ export default function ReportsPage() {
 
     const date = new Date();
     date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() - days);
+    date.setDate(date.getDate() - (days - 1));
 
     return date;
   }, [range]);
@@ -272,6 +275,11 @@ export default function ReportsPage() {
   return (
     <div className="min-h-screen px-5 py-6 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-[1450px]">
+        {error && (
+          <div className="mb-5 rounded-xl border border-[var(--danger-border,#ffb3b8)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
+            {error}
+          </div>
+        )}
         {/* Header */}
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
@@ -342,6 +350,7 @@ export default function ReportsPage() {
             value={formatCurrency(summary.income)}
             icon={<ArrowUpRight className="h-5 w-5" />}
             iconClass="bg-[#ecfdf5] text-[#16a36a]"
+            valueClass="text-[var(--accent)]"
             description={`${summary.transactionCount} transactions`}
           />
 
@@ -350,6 +359,7 @@ export default function ReportsPage() {
             value={formatCurrency(summary.expenses)}
             icon={<ArrowDownRight className="h-5 w-5" />}
             iconClass="bg-[#fff1f1] text-[#ff5b5f]"
+            valueClass="text-[var(--danger)]"
             description="Money spent"
           />
 
@@ -777,12 +787,14 @@ function SummaryCard({
   value,
   icon,
   iconClass,
+  valueClass = "text-[#10231c]",
   description,
 }: {
   label: string;
   value: string;
   icon: React.ReactNode;
   iconClass: string;
+  valueClass?: string;
   description: string;
 }) {
   return (
@@ -793,7 +805,7 @@ function SummaryCard({
             {label}
           </p>
 
-          <p className="mt-2 text-[24px] font-bold tracking-[-0.04em] text-[#10231c]">
+          <p className={`mt-2 text-[24px] font-bold tracking-[-0.04em] ${valueClass}`}>
             {value}
           </p>
         </div>

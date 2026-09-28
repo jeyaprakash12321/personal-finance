@@ -1,5 +1,6 @@
 import fp from "fastify-plugin";
 import fastifyJwt from "@fastify/jwt";
+import { FastifyRequest, FastifyReply } from "fastify";
 
 declare module "fastify" {
   interface FastifyInstance {

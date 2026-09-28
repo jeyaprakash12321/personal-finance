@@ -71,6 +71,27 @@
       "when": 1789879357297,
       "tag": "0009_lame_ken_ellis",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790180249854,
+      "tag": "0010_narrow_lila_cheney",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790420000000,
+      "tag": "0011_link_credit_cards_to_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790526592469,
+      "tag": "0012_giant_pixie",
+      "breakpoints": true
     }
   ]
 }
