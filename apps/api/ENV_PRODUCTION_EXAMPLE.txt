@@ -1,0 +1,8 @@
+# Copy these into Render's environment variables dashboard
+# DO NOT commit real values
+
+DATABASE_URL=postgresql://user:password@host:5432/dbname   # auto-set by Render from database
+PORT=4000
+NODE_ENV=production
+JWT_SECRET=change-this-to-a-long-random-secret-min-32-chars
+CORS_ORIGIN=https://your-app.vercel.app                    # set after Vercel deployment

@@ -9,7 +9,8 @@
     "build": "tsc",
     "seed": "tsx src/seed.ts",
     "test": "pnpm --dir ../.. test",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "start:migrate": "pnpm --filter @personal-finance/db migrate && node dist/server.js"
   },
   "keywords": [],
   "author": "",

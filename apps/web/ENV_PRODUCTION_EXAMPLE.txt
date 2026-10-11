@@ -1,0 +1,8 @@
+# Copy these into Vercel's environment variables dashboard
+# DO NOT commit real values
+
+# The internal Render API URL (from Render dashboard → your service → URL)
+NEXT_PRIVATE_API_URL=https://wealthly-api.onrender.com
+
+# Your own Vercel deployment URL
+NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
