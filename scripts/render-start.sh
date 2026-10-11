@@ -1,11 +1,11 @@
+
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-export PNPM_HOME="$HOME/.local/share/pnpm"
-export PATH="$PNPM_HOME:$PATH"
+export SHELL=/bin/bash
+export npm_config_prefix="$HOME/.npm-global"
+export PATH="$HOME/.npm-global/bin:$PATH"
 
-echo "Running database migrations..."
+# Apply database migrations, then start the API.
 pnpm --filter @personal-finance/db migrate
-
-echo "Starting API server..."
-node apps/api/dist/server.js
+exec node apps/api/dist/server.js
