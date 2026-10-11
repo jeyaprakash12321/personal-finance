@@ -5,8 +5,8 @@ services:
     region: oregon
     plan: free
     rootDir: .
-    buildCommand: npm install -g pnpm@12.4.2 && pnpm install --frozen-lockfile && pnpm --filter api build
-    startCommand: pnpm --filter @personal-finance/db migrate && node apps/api/dist/server.js
+    buildCommand: corepack enable && corepack prepare pnpm@12.4.2 --activate && pnpm install --frozen-lockfile && pnpm --filter api build
+    startCommand: corepack enable && pnpm --filter @personal-finance/db migrate && node apps/api/dist/server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -18,8 +18,7 @@ services:
         generateValue: true
       - key: CORS_ORIGIN
         sync: false
-        # After deploying Next.js to Vercel, set this to your Vercel URL
-        # e.g. https://wealthly.vercel.app
+        # Set to your Vercel URL after deploying Next.js, e.g. https://wealthly.vercel.app
 
 databases:
   - name: wealthly-db
